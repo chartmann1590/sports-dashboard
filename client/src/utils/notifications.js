@@ -1,4 +1,4 @@
-import { playScoreSound } from './audio';
+﻿import { playScoreSound } from './audio';
 
 const STORAGE_KEY_SUBSCRIPTIONS = 'arenapulse_game_subscriptions';
 const STORAGE_KEY_GLOBAL_PREFS = 'arenapulse_global_alert_prefs';
