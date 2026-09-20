@@ -76,8 +76,8 @@ export default function NotificationModal({ isOpen, onClose, onSelectGame }) {
 
   const handleSendTest = async () => {
     playClickSound();
-    setTestSent(true);
-    await sendTestNotification();
+    const result = await sendTestNotification();
+    setTestSent(result !== 'unsupported');
     setTimeout(() => setTestSent(false), 3000);
   };
 
@@ -297,7 +297,9 @@ export default function NotificationModal({ isOpen, onClose, onSelectGame }) {
         <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between gap-3">
           <button
             onClick={handleSendTest}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-2 border border-slate-700"
+            disabled={permission === 'unsupported'}
+            title={permission === 'unsupported' ? 'Browser notifications are not supported in this browser' : undefined}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-2 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Sparkles className="w-4 h-4 text-amber-400" />
             <span>{testSent ? 'Test Alert Dispatched!' : 'Send Test Notification'}</span>
