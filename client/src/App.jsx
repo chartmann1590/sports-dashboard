@@ -7,8 +7,15 @@ import GameCard from './components/GameCard';
 import GameDetailsModal from './components/GameDetailsModal';
 import TVMode from './components/TVMode';
 import NewsDrawer from './components/NewsDrawer';
+import NotificationModal from './components/NotificationModal';
 import { getTodayString } from './utils/date';
 import { playScoreSound } from './utils/audio';
+import { 
+  getSubscriptions, 
+  toggleGameSubscription, 
+  getGameAlertPreferences, 
+  sendGameAlert 
+} from './utils/notifications';
 import { Flame, Radio, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
@@ -27,13 +34,166 @@ export default function App() {
 
   const [selectedGame, setSelectedGame] = useState(null);
   const [isNewsOpen, setIsNewsOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [subscriptions, setSubscriptions] = useState(getSubscriptions());
+  const [installPrompt, setInstallPrompt] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'live', 'upcoming', 'final'
   const [sortBy, setSortBy] = useState('live-first');
 
-  // Track previous game scores to trigger audio & confetti on live changes
+  // Track previous game states to trigger notifications, audio & confetti on live changes
   const previousScoresRef = useRef({});
+  const previousGameStateRef = useRef({});
+
+  // PWA install prompt & subscription synchronization
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+    };
+    const handleSubsChange = () => {
+      setSubscriptions(getSubscriptions());
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('arenapulse:subscriptions-changed', handleSubsChange);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('arenapulse:subscriptions-changed', handleSubsChange);
+    };
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const choiceResult = await installPrompt.userChoice;
+    if (choiceResult && choiceResult.outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
+
+  const handleToggleGameSub = (game) => {
+    toggleGameSubscription(game);
+    setSubscriptions(getSubscriptions());
+  };
+
+  // State Diffing Engine for Subscribed Game Alerts
+  const checkGameNotifications = (incomingGames) => {
+    if (!incomingGames || !incomingGames.length) return;
+    const currentSubs = getSubscriptions();
+
+    incomingGames.forEach(game => {
+      const sub = currentSubs[game.id];
+      const prev = previousGameStateRef.current[game.id];
+
+      const currHome = Number(game.homeTeam?.score || 0);
+      const currAway = Number(game.awayTeam?.score || 0);
+      const currTotal = currHome + currAway;
+      const currPeriod = Number(game.status?.period || 0);
+      const currDetail = game.status?.detail || '';
+      const isLive = Boolean(game.status?.isLive);
+      const isFinal = Boolean(game.status?.isFinal);
+
+      if (sub && prev) {
+        const prefs = getGameAlertPreferences(game.id);
+
+        // 1. TOUCHDOWN / SCORING PLAY ALERT
+        if (prefs.touchdowns && isLive && currTotal > prev.totalScore) {
+          const homeDiff = currHome - prev.homeScore;
+          const awayDiff = currAway - prev.awayScore;
+          let scoringTeam = '';
+          let scoreType = 'SCORE';
+          let iconEmoji = '⚡';
+
+          const sport = (game.sport || '').toLowerCase();
+          const isFootball = sport === 'football' || ['nfl', 'college-football'].includes(game.league);
+          const isSoccer = sport === 'soccer';
+          const isBaseball = sport === 'baseball' || game.league === 'mlb';
+
+          if (homeDiff > 0) {
+            scoringTeam = game.homeTeam?.displayName || game.homeTeam?.name || 'Home';
+            if (isFootball && homeDiff >= 6) {
+              scoreType = 'TOUCHDOWN';
+              iconEmoji = '🏈';
+            } else if (isFootball && homeDiff === 3) {
+              scoreType = 'FIELD GOAL';
+              iconEmoji = '🏈';
+            } else if (isSoccer) {
+              scoreType = 'GOAL';
+              iconEmoji = '⚽';
+            } else if (isBaseball) {
+              scoreType = homeDiff > 1 ? `${homeDiff}-RUN HOME RUN` : 'RUN SCORED';
+              iconEmoji = '⚾';
+            }
+          } else if (awayDiff > 0) {
+            scoringTeam = game.awayTeam?.displayName || game.awayTeam?.name || 'Away';
+            if (isFootball && awayDiff >= 6) {
+              scoreType = 'TOUCHDOWN';
+              iconEmoji = '🏈';
+            } else if (isFootball && awayDiff === 3) {
+              scoreType = 'FIELD GOAL';
+              iconEmoji = '🏈';
+            } else if (isSoccer) {
+              scoreType = 'GOAL';
+              iconEmoji = '⚽';
+            } else if (isBaseball) {
+              scoreType = awayDiff > 1 ? `${awayDiff}-RUN HOME RUN` : 'RUN SCORED';
+              iconEmoji = '⚾';
+            }
+          }
+
+          sendGameAlert({
+            title: `${iconEmoji} ${scoreType}! ${scoringTeam}`,
+            body: `${game.awayTeam?.displayName} ${currAway} - ${currHome} ${game.homeTeam?.displayName} (${game.status?.shortDetail || currDetail})`,
+            gameId: game.id,
+            tag: `score-${game.id}-${currTotal}`,
+            playChime: true
+          });
+        }
+
+        // 2. QUARTER / PERIOD UPDATE ALERT
+        if (prefs.quarters && ((currPeriod > prev.period && currPeriod > 1) || (currDetail !== prev.detail && currDetail.toLowerCase().includes('half')))) {
+          const periodLabel = prev.period === 1 ? '1st Quarter' : prev.period === 2 ? 'Halftime' : prev.period === 3 ? '3rd Quarter' : `Period ${prev.period}`;
+          sendGameAlert({
+            title: `⏱️ ${periodLabel} Update: ${game.awayTeam?.displayName} vs ${game.homeTeam?.displayName}`,
+            body: `Score: ${game.awayTeam?.displayName} ${currAway}, ${game.homeTeam?.displayName} ${currHome} • ${currDetail}`,
+            gameId: game.id,
+            tag: `period-${game.id}-${currPeriod}`,
+            playChime: true
+          });
+        }
+
+        // 3. FINAL SCORE ALERT
+        if (prefs.finalScore && !prev.isFinal && isFinal) {
+          const winner = currHome > currAway ? game.homeTeam?.displayName : currAway > currHome ? game.awayTeam?.displayName : 'Tie';
+          sendGameAlert({
+            title: `🏆 FINAL: ${winner} Win!`,
+            body: `Final Score: ${game.awayTeam?.displayName} ${currAway}, ${game.homeTeam?.displayName} ${currHome}`,
+            gameId: game.id,
+            tag: `final-${game.id}`,
+            playChime: true
+          });
+        }
+      }
+
+      previousGameStateRef.current[game.id] = {
+        homeScore: currHome,
+        awayScore: currAway,
+        totalScore: currTotal,
+        period: currPeriod,
+        detail: currDetail,
+        isLive,
+        isFinal
+      };
+    });
+  };
 
   // Fetch data
   const fetchData = async (isSilent = false) => {
@@ -44,10 +204,15 @@ export default function App() {
         const res = await fetch(`/api/scores/all?date=${selectedDate}`);
         const data = await res.json();
         
-        // Detect score changes
-        if (data.games && isAudioEnabled) {
+        const incoming = data.games || [];
+
+        // Check alerts for subscribed games
+        checkGameNotifications(incoming);
+
+        // Detect score changes for global audio & confetti
+        if (incoming.length && isAudioEnabled) {
           let scoreChanged = false;
-          data.games.forEach(g => {
+          incoming.forEach(g => {
             const prev = previousScoresRef.current[g.id];
             const currentTotal = (g.awayTeam.score || 0) + (g.homeTeam.score || 0);
             if (prev !== undefined && prev !== currentTotal && g.status.isLive) {
@@ -62,14 +227,16 @@ export default function App() {
           }
         }
 
-        setGames(data.games || []);
+        setGames(incoming);
         if (data.leagues) {
           setLeagues(data.leagues);
         }
       } else {
         const res = await fetch(`/api/scores?league=${encodeURIComponent(selectedLeagueId)}&date=${selectedDate}`);
         const data = await res.json();
-        setGames(data.events || []);
+        const incoming = data.events || [];
+        checkGameNotifications(incoming);
+        setGames(incoming);
       }
     } catch (err) {
       console.error('Failed to load sports data:', err);
@@ -199,6 +366,10 @@ export default function App() {
         setIsTVMode={setIsTVMode}
         totalLiveCount={liveCountByLeague['all'] || 0}
         onOpenNews={() => setIsNewsOpen(true)}
+        onOpenNotifications={() => setIsNotificationModalOpen(true)}
+        activeSubscriptionCount={Object.keys(subscriptions).length}
+        installPrompt={installPrompt}
+        onInstallPWA={handleInstallPWA}
       />
 
       {/* League Selection Bar */}
@@ -285,6 +456,8 @@ export default function App() {
                 key={game.id}
                 game={game}
                 onClick={(g) => setSelectedGame(g)}
+                isSubscribed={Boolean(subscriptions[game.id])}
+                onToggleSubscribe={handleToggleGameSub}
               />
             ))}
           </div>
@@ -342,6 +515,16 @@ export default function App() {
         onClose={() => setIsNewsOpen(false)}
         defaultLeague={selectedLeagueId !== 'all' ? selectedLeagueId : 'nfl'}
         leagues={leagues}
+      />
+
+      {/* Live Game Notification Manager */}
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        onSelectGame={(gameId) => {
+          const g = games.find(x => x.id === gameId);
+          if (g) setSelectedGame(g);
+        }}
       />
 
     </div>

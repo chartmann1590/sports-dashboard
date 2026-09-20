@@ -12,7 +12,9 @@ import {
   Activity, 
   Clock, 
   Flame,
-  Radio
+  Radio,
+  Bell,
+  Download
 } from 'lucide-react';
 import { formatFriendlyDate, offsetDateString, getTodayString } from '../utils/date';
 import { playClickSound } from '../utils/audio';
@@ -30,7 +32,11 @@ export default function Header({
   isTVMode,
   setIsTVMode,
   totalLiveCount,
-  onOpenNews
+  onOpenNews,
+  onOpenNotifications,
+  activeSubscriptionCount = 0,
+  installPrompt,
+  onInstallPWA
 }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -216,6 +222,42 @@ export default function Header({
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* PWA Install Button */}
+          {installPrompt && (
+            <button
+              onClick={() => {
+                playClickSound();
+                onInstallPWA();
+              }}
+              className="px-3 py-1.5 rounded-xl border bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-400/80 text-white hover:brightness-110 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 animate-pulse"
+              title="Install ArenaPulse PWA App on your device"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Install App</span>
+            </button>
+          )}
+
+          {/* Game Notifications Manager Bell */}
+          <button
+            onClick={() => {
+              playClickSound();
+              if (onOpenNotifications) onOpenNotifications();
+            }}
+            className={`p-2 rounded-xl border transition relative ${
+              activeSubscriptionCount > 0
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-sm shadow-amber-500/20'
+                : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+            }`}
+            title={`Live Game Alerts & Subscriptions (${activeSubscriptionCount} active)`}
+          >
+            <Bell className="w-4 h-4" />
+            {activeSubscriptionCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-amber-500 text-slate-950 text-[10px] font-black rounded-full flex items-center justify-center shadow">
+                {activeSubscriptionCount}
+              </span>
+            )}
+          </button>
 
           {/* Audio Chime Toggle */}
           <button

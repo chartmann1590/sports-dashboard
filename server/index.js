@@ -104,6 +104,15 @@ app.get('/api/news', async (req, res) => {
 
 // Serve frontend in production
 const distPath = path.join(__dirname, '..', 'client', 'dist');
+
+// Serve service worker with proper headers
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.join(distPath, 'sw.js'));
+});
+
 app.use(express.static(distPath));
 
 // SPA Fallback for client routes

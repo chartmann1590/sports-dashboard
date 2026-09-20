@@ -1,9 +1,9 @@
 import React from 'react';
-import { Tv, Radio, Clock, Award, ChevronRight, Circle } from 'lucide-react';
+import { Tv, Radio, Clock, Award, ChevronRight, Circle, Bell } from 'lucide-react';
 import { formatGameTime } from '../utils/date';
 import { playClickSound } from '../utils/audio';
 
-export default function GameCard({ game, onClick }) {
+export default function GameCard({ game, onClick, isSubscribed = false, onToggleSubscribe }) {
   const {
     status,
     homeTeam,
@@ -84,6 +84,25 @@ export default function GameCard({ game, onClick }) {
             <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-slate-800/40 text-slate-400 text-[10px]">
               {odds.details}
             </span>
+          )}
+
+          {/* Alert Subscription Toggle */}
+          {onToggleSubscribe && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                playClickSound();
+                onToggleSubscribe(game);
+              }}
+              className={`p-1 rounded-lg transition ${
+                isSubscribed 
+                  ? 'text-amber-400 bg-amber-500/20 hover:bg-amber-500/30 ring-1 ring-amber-500/30' 
+                  : 'text-slate-500 hover:text-amber-300 hover:bg-slate-800'
+              }`}
+              title={isSubscribed ? "Subscribed to live game alerts (click to unsubscribe)" : "Subscribe to live game alerts (Touchdowns, Quarters, Final score)"}
+            >
+              <Bell className={`w-3.5 h-3.5 ${isSubscribed ? 'fill-amber-400' : ''}`} />
+            </button>
           )}
         </div>
 

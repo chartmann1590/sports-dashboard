@@ -1,0 +1,53 @@
+﻿{
+  "name": "ArenaPulse — Live Sports Dashboard",
+  "short_name": "ArenaPulse",
+  "description": "Live real-time sports scores, win probabilities, play-by-play, TV Jumbotron display, and custom game notifications.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#07090e",
+  "theme_color": "#07090e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": [
+    "sports",
+    "news",
+    "entertainment",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Games",
+      "short_name": "Live",
+      "description": "View active live in-play matches",
+      "url": "/?filter=live",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "NFL Scores",
+      "short_name": "NFL",
+      "description": "View live NFL football scores and touchdowns",
+      "url": "/?league=nfl",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

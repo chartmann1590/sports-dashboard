@@ -20,7 +20,11 @@ import {
   TrendingUp, 
   ShieldCheck, 
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Bell,
+  BellRing,
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -32,6 +36,15 @@ import {
   ReferenceLine 
 } from 'recharts';
 import { playClickSound } from '../utils/audio';
+import {
+  isGameSubscribed,
+  getGameAlertPreferences,
+  subscribeToGame,
+  unsubscribeFromGame,
+  updateGamePreferences,
+  requestNotificationPermission,
+  getNotificationPermission
+} from '../utils/notifications';
 
 // Helper to choose the right weather icon
 function getWeatherIcon(weather) {
@@ -60,6 +73,32 @@ export default function GameDetailsModal({ game, onClose }) {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('scoring'); // 'scoring', 'plays', 'boxscore', 'winprob', 'gameinfo', 'recap'
+  const [subscribed, setSubscribed] = useState(isGameSubscribed(game.id));
+  const [alertPrefs, setAlertPrefs] = useState(getGameAlertPreferences(game.id));
+  const [showAlertMenu, setShowAlertMenu] = useState(false);
+
+  const handleToggleSub = async () => {
+    playClickSound();
+    if (!subscribed) {
+      if (getNotificationPermission() === 'default') {
+        await requestNotificationPermission();
+      }
+      subscribeToGame(game, alertPrefs);
+      setSubscribed(true);
+      setShowAlertMenu(true);
+    } else {
+      unsubscribeFromGame(game.id);
+      setSubscribed(false);
+      setShowAlertMenu(false);
+    }
+  };
+
+  const handleTogglePref = (key) => {
+    playClickSound();
+    const updated = { ...alertPrefs, [key]: !alertPrefs[key] };
+    setAlertPrefs(updated);
+    updateGamePreferences(game.id, updated);
+  };
 
   // Fetch deep summary from backend
   const fetchSummary = async () => {
@@ -131,17 +170,79 @@ export default function GameDetailsModal({ game, onClose }) {
         {/* Header Matchup Banner */}
         <div className="relative bg-gradient-to-br from-slate-900 via-[#101728] to-slate-950 p-6 border-b border-slate-800">
           
-          {/* Close button */}
-          <button
-            onClick={() => {
-              playClickSound();
-              onClose();
-            }}
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition z-10"
-            title="Close (Esc)"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Top Actions: Alerts & Close */}
+          <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+            {/* Alert Subscription Button */}
+            <div className="relative">
+              <button
+                onClick={handleToggleSub}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-md ${
+                  subscribed 
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 hover:bg-amber-500/30' 
+                    : 'bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 border border-slate-700'
+                }`}
+                title="Subscribe to game alerts (Touchdowns, Quarters, Final score)"
+              >
+                <Bell className={`w-3.5 h-3.5 ${subscribed ? 'fill-amber-400 text-amber-400' : ''}`} />
+                <span>{subscribed ? 'Alerts Active' : 'Get Alerts'}</span>
+                {subscribed && (
+                  <span 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAlertMenu(!showAlertMenu);
+                    }}
+                    className="p-0.5 hover:bg-amber-500/20 rounded ml-0.5"
+                    title="Customize alert triggers"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </span>
+                )}
+              </button>
+
+              {/* Alert Preferences Dropdown */}
+              {subscribed && showAlertMenu && (
+                <div 
+                  className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-3 z-30 space-y-2 animate-fadeIn"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">Alert Triggers</p>
+                  <label 
+                    onClick={() => handleTogglePref('touchdowns')}
+                    className="flex items-center justify-between p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-xs font-medium text-slate-200 cursor-pointer"
+                  >
+                    <span>🏈 Touchdowns & Plays</span>
+                    <input type="checkbox" checked={alertPrefs.touchdowns} onChange={() => {}} className="accent-amber-400 w-3.5 h-3.5" />
+                  </label>
+                  <label 
+                    onClick={() => handleTogglePref('quarters')}
+                    className="flex items-center justify-between p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-xs font-medium text-slate-200 cursor-pointer"
+                  >
+                    <span>⏱️ Quarter & Halftime</span>
+                    <input type="checkbox" checked={alertPrefs.quarters} onChange={() => {}} className="accent-amber-400 w-3.5 h-3.5" />
+                  </label>
+                  <label 
+                    onClick={() => handleTogglePref('finalScore')}
+                    className="flex items-center justify-between p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-xs font-medium text-slate-200 cursor-pointer"
+                  >
+                    <span>🏆 Final Score</span>
+                    <input type="checkbox" checked={alertPrefs.finalScore} onChange={() => {}} className="accent-amber-400 w-3.5 h-3.5" />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={() => {
+                playClickSound();
+                onClose();
+              }}
+              className="p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+              title="Close (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* Top meta tags */}
           <div className="flex flex-wrap items-center gap-2 mb-4">

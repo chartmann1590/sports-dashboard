@@ -33,6 +33,17 @@ export default function NewsDrawer({ isOpen, onClose, defaultLeague = 'nfl', lea
     }
   }, [isOpen, league]);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   // Use provided leagues or default complete league list
@@ -54,7 +65,10 @@ export default function NewsDrawer({ isOpen, onClose, defaultLeague = 'nfl', lea
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div 
+      className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fadeIn"
+      onClick={onClose}
+    >
       <div 
         className="w-full max-w-lg bg-[#0b0f19] border-l border-slate-800 h-full flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
