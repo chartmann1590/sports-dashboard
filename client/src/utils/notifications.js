@@ -196,6 +196,7 @@ export async function sendGameAlert({ title, body, icon, gameId, playChime = tru
 
 // Test notification trigger
 export async function sendTestNotification() {
+  if (!isNotificationSupported()) return 'unsupported';
   if (Notification.permission !== 'granted') {
     const permission = await requestNotificationPermission();
     if (permission !== 'granted') {
