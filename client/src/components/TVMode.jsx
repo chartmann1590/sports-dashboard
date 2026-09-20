@@ -59,11 +59,15 @@ export default function TVMode({
       if (e.key === 'Escape') {
         onClose();
       } else if (e.key === 'ArrowRight') {
-        playClickSound();
-        setCurrentIndex((prev) => (prev + 1) % prioritizedGames.length);
+        if (prioritizedGames.length > 0) {
+          playClickSound();
+          setCurrentIndex((prev) => (prev + 1) % prioritizedGames.length);
+        }
       } else if (e.key === 'ArrowLeft') {
-        playClickSound();
-        setCurrentIndex((prev) => (prev - 1 + prioritizedGames.length) % prioritizedGames.length);
+        if (prioritizedGames.length > 0) {
+          playClickSound();
+          setCurrentIndex((prev) => (prev - 1 + prioritizedGames.length) % prioritizedGames.length);
+        }
       } else if (e.key === ' ') {
         e.preventDefault();
         playClickSound();
@@ -325,8 +329,10 @@ export default function TVMode({
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
-              playClickSound();
-              setCurrentIndex((prev) => (prev - 1 + prioritizedGames.length) % prioritizedGames.length);
+              if (prioritizedGames.length > 0) {
+                playClickSound();
+                setCurrentIndex((prev) => (prev - 1 + prioritizedGames.length) % prioritizedGames.length);
+              }
             }}
             className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
             title="Previous Game (Left Arrow)"
@@ -336,8 +342,10 @@ export default function TVMode({
 
           <button
             onClick={() => {
-              playClickSound();
-              setCurrentIndex((prev) => (prev + 1) % prioritizedGames.length);
+              if (prioritizedGames.length > 0) {
+                playClickSound();
+                setCurrentIndex((prev) => (prev + 1) % prioritizedGames.length);
+              }
             }}
             className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
             title="Next Game (Right Arrow)"

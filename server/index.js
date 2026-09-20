@@ -8,7 +8,8 @@ import {
   getAllScores, 
   getScoreboard, 
   getGameSummary, 
-  getNews 
+  getNews,
+  resolveSportAndLeague
 } from './espnService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -57,19 +58,33 @@ app.get('/api/scores/all', async (req, res) => {
 // League specific scoreboard (with optional ?date=YYYYMMDD or YYYY-MM-DD)
 app.get('/api/scores', async (req, res) => {
   try {
-    const { sport = 'football', league = 'nfl', date } = req.query;
-    const data = await getScoreboard(sport, league, date);
+    const { date } = req.query;
+    const resolved = resolveSportAndLeague(req.query.sport, req.query.league);
+    const data = await getScoreboard(resolved.sport, resolved.league, date);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Deep Game Details (Plays, Box Score, Player Stats, Recaps, Odds, etc.)
+// Deep Game Details by sport, league, and ID
 app.get('/api/game/:sport/:league/:id', async (req, res) => {
   try {
     const { sport, league, id } = req.params;
-    const data = await getGameSummary(sport, league, id);
+    const resolved = resolveSportAndLeague(sport, league);
+    const data = await getGameSummary(resolved.sport, resolved.league, id);
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Deep Game Details by league and ID (automatic sport resolution)
+app.get('/api/game/:league/:id', async (req, res) => {
+  try {
+    const { league, id } = req.params;
+    const resolved = resolveSportAndLeague(null, league);
+    const data = await getGameSummary(resolved.sport, resolved.league, id);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -79,8 +94,8 @@ app.get('/api/game/:sport/:league/:id', async (req, res) => {
 // News headlines
 app.get('/api/news', async (req, res) => {
   try {
-    const { sport = 'football', league = 'nfl' } = req.query;
-    const data = await getNews(sport, league);
+    const resolved = resolveSportAndLeague(req.query.sport, req.query.league);
+    const data = await getNews(resolved.sport, resolved.league);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });

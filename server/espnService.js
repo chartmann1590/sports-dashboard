@@ -17,7 +17,191 @@ export const LEAGUES_CONFIG = [
   { id: 'mex.1', sport: 'soccer', league: 'mex.1', name: 'Liga MX', category: 'Soccer', icon: '⚽' },
 ];
 
+/**
+ * Resolve sport and league from configuration, inferring sport if omitted or mismatched
+ */
+export function resolveSportAndLeague(sport, league) {
+  if (!league && sport) {
+    const match = LEAGUES_CONFIG.find(l => l.id === sport.toLowerCase() || l.league === sport.toLowerCase());
+    if (match) {
+      return { sport: match.sport, league: match.league };
+    }
+  }
+
+  const targetLeague = (league || sport || 'nfl').toLowerCase();
+  const match = LEAGUES_CONFIG.find(l => l.id === targetLeague || l.league === targetLeague);
+  if (match) {
+    return { sport: match.sport, league: match.league };
+  }
+
+  return {
+    sport: (sport || 'football').toLowerCase(),
+    league: targetLeague
+  };
+}
+
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
+// AccuWeather Condition Mapping used by ESPN
+const WEATHER_CONDITIONS = {
+  '1': 'Sunny',
+  '2': 'Mostly Sunny',
+  '3': 'Partly Sunny',
+  '4': 'Clear',
+  '5': 'Mostly Clear',
+  '6': 'Partly Cloudy',
+  '7': 'Intermittent Clouds',
+  '8': 'Mostly Cloudy',
+  '11': 'Fog',
+  '12': 'Showers',
+  '13': 'Mostly Cloudy w/ Showers',
+  '14': 'Partly Sunny w/ Showers',
+  '15': 'Thunderstorms',
+  '16': 'Mostly Cloudy w/ Thunderstorms',
+  '17': 'Partly Sunny w/ Thunderstorms',
+  '18': 'Rain',
+  '19': 'Flurries',
+  '20': 'Mostly Cloudy w/ Flurries',
+  '21': 'Partly Sunny w/ Flurries',
+  '22': 'Snow',
+  '23': 'Mostly Cloudy w/ Snow',
+  '24': 'Ice',
+  '25': 'Sleet',
+  '26': 'Freezing Rain',
+  '29': 'Rain & Snow',
+  '30': 'Hot',
+  '31': 'Cold',
+  '32': 'Windy'
+};
+
+// WMO Weather code mapping for Open-Meteo
+const WMO_CODES = {
+  0: 'Clear sky',
+  1: 'Mainly clear',
+  2: 'Partly cloudy',
+  3: 'Overcast',
+  45: 'Fog',
+  48: 'Depositing rime fog',
+  51: 'Light drizzle',
+  53: 'Moderate drizzle',
+  55: 'Dense drizzle',
+  61: 'Slight rain',
+  63: 'Moderate rain',
+  65: 'Heavy rain',
+  71: 'Slight snowfall',
+  73: 'Moderate snowfall',
+  75: 'Heavy snowfall',
+  80: 'Slight rain showers',
+  81: 'Moderate rain showers',
+  82: 'Violent rain showers',
+  95: 'Thunderstorm',
+  96: 'Thunderstorm with hail',
+  99: 'Heavy Thunderstorm'
+};
+
+/**
+ * Fetch live weather from free Open-Meteo for any city/venue
+ */
+async function getLiveWeatherFallback(city) {
+  if (!city) return null;
+  const cacheKey = `weather:city:${city.toLowerCase()}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
+    const geoRes = await fetch(geoUrl, { headers: { 'User-Agent': 'SportsPulse/1.0' } });
+    const geoData = await geoRes.json();
+
+    if (!geoData.results?.length) return null;
+    const { latitude, longitude } = geoData.results[0];
+
+    const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`;
+    const wRes = await fetch(wUrl, { headers: { 'User-Agent': 'SportsPulse/1.0' } });
+    const wData = await wRes.json();
+
+    const cur = wData.current;
+    if (!cur) return null;
+
+    const weather = {
+      temperature: Math.round(cur.temperature_2m),
+      condition: WMO_CODES[cur.weather_code] || 'Fair',
+      conditionId: String(cur.weather_code),
+      wind: `${Math.round(cur.wind_speed_10m)} mph`,
+      humidity: `${cur.relative_humidity_2m}%`,
+      precipitation: null,
+      indoor: false,
+      displayValue: `${Math.round(cur.temperature_2m)}°F • ${WMO_CODES[cur.weather_code] || 'Fair'}`
+    };
+
+    // Cache for 1 hour
+    cache.set(cacheKey, weather, 3600);
+    return weather;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Format and normalize weather from ESPN or live fallback
+ */
+async function resolveWeather(venue, rawWeather) {
+  const isIndoor = Boolean(venue?.indoor);
+
+  // If ESPN provided weather
+  if (rawWeather && (rawWeather.temperature !== undefined || rawWeather.displayValue)) {
+    const condition = WEATHER_CONDITIONS[rawWeather.conditionId] || rawWeather.condition || (rawWeather.conditionId ? 'Fair' : '');
+    const temp = rawWeather.temperature !== undefined ? Math.round(rawWeather.temperature) : null;
+    const wind = rawWeather.gust ? `Gusts to ${rawWeather.gust} mph` : (rawWeather.wind ? String(rawWeather.wind) : null);
+    const precip = rawWeather.precipitation ? `${rawWeather.precipitation}%` : null;
+
+    let displayValue = '';
+    if (isIndoor) {
+      displayValue = temp ? `${temp}°F Outside • Dome / Retractable Roof` : 'Dome / Climate Controlled (72°F)';
+    } else if (temp !== null) {
+      displayValue = condition ? `${temp}°F • ${condition}` : `${temp}°F`;
+    } else {
+      displayValue = rawWeather.displayValue || condition || 'Fair';
+    }
+
+    return {
+      temperature: temp,
+      condition: condition || (isIndoor ? 'Indoor Arena / Dome' : 'Fair'),
+      conditionId: rawWeather.conditionId,
+      wind,
+      precipitation: precip,
+      indoor: isIndoor,
+      displayValue
+    };
+  }
+
+  // If venue is indoor dome without weather
+  if (isIndoor) {
+    return {
+      temperature: 72,
+      condition: 'Climate Controlled (Dome)',
+      conditionId: '4',
+      wind: 'Calm (Indoor)',
+      precipitation: '0%',
+      indoor: true,
+      displayValue: 'Climate-Controlled Dome (72°F)'
+    };
+  }
+
+  // Query live weather fallback via city
+  const city = venue?.city || venue?.address?.city;
+  if (city) {
+    const fallback = await getLiveWeatherFallback(city);
+    if (fallback) {
+      return {
+        ...fallback,
+        indoor: false
+      };
+    }
+  }
+
+  return null;
+}
 
 async function fetchFromESPN(url) {
   const response = await fetch(url, {
@@ -130,6 +314,33 @@ function normalizeEvent(event, sport, league, leagueName) {
     }))
   }));
 
+  const venue = competition.venue ? {
+    name: competition.venue.fullName,
+    city: competition.venue.address?.city,
+    state: competition.venue.address?.state,
+    indoor: Boolean(competition.venue.indoor)
+  } : null;
+
+  // Weather formatting
+  let weather = null;
+  if (competition.weather) {
+    const w = competition.weather;
+    const cond = WEATHER_CONDITIONS[w.conditionId] || w.condition || '';
+    weather = {
+      temperature: w.temperature !== undefined ? Math.round(w.temperature) : null,
+      condition: cond,
+      displayValue: w.displayValue || (w.temperature ? `${Math.round(w.temperature)}°F • ${cond}` : cond),
+      indoor: Boolean(venue?.indoor)
+    };
+  } else if (venue?.indoor) {
+    weather = {
+      temperature: 72,
+      condition: 'Climate-Controlled Dome',
+      displayValue: 'Climate-Controlled (72°F)',
+      indoor: true
+    };
+  }
+
   return {
     id: event.id,
     uid: event.uid,
@@ -156,17 +367,8 @@ function normalizeEvent(event, sport, league, leagueName) {
     situation: situationData,
     broadcasts,
     odds,
-    venue: competition.venue ? {
-      name: competition.venue.fullName,
-      city: competition.venue.address?.city,
-      state: competition.venue.address?.state,
-      indoor: competition.venue.indoor
-    } : null,
-    weather: competition.weather ? {
-      temperature: competition.weather.temperature,
-      displayValue: competition.weather.displayValue,
-      condition: competition.weather.conditionId
-    } : null,
+    venue,
+    weather,
     leaders,
     headlines: competition.headlines?.map(h => ({
       description: h.description,
@@ -186,7 +388,6 @@ export async function getScoreboard(sport, league, date = null) {
 
   let url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard`;
   if (date) {
-    // Format YYYYMMDD
     const cleanDate = date.replace(/-/g, '');
     url += `?dates=${cleanDate}`;
   }
@@ -211,7 +412,6 @@ export async function getScoreboard(sport, league, date = null) {
       events
     };
 
-    // Cache: 15s for live/recent, longer if past date
     cache.set(cacheKey, result, 15);
     return result;
   } catch (error) {
@@ -232,7 +432,6 @@ export async function getAllScores(date = null) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  // Query primary leagues in parallel
   const promises = LEAGUES_CONFIG.map(cfg => 
     getScoreboard(cfg.sport, cfg.league, date).then(res => ({
       config: cfg,
@@ -299,7 +498,7 @@ export async function getAllScores(date = null) {
 }
 
 /**
- * Fetch Deep Game Summary (Play-by-play, Boxscore, Player Stats, Odds, Recap, Win Probability)
+ * Fetch Deep Game Summary (Play-by-play, Boxscore, Player Stats, Weather, Odds, Recap, Win Probability)
  */
 export async function getGameSummary(sport, league, eventId) {
   const cacheKey = `summary:${sport}:${league}:${eventId}`;
@@ -311,7 +510,20 @@ export async function getGameSummary(sport, league, eventId) {
   try {
     const data = await fetchFromESPN(url);
 
-    // Normalize Boxscore
+    // Venue details
+    const venue = data.gameInfo?.venue ? {
+      name: data.gameInfo.venue.fullName,
+      city: data.gameInfo.venue.address?.city,
+      state: data.gameInfo.venue.address?.state,
+      country: data.gameInfo.venue.address?.country,
+      capacity: data.gameInfo.venue.capacity,
+      indoor: Boolean(data.gameInfo.venue.indoor)
+    } : null;
+
+    // Resolve Weather with deep details & live fallback
+    const weather = await resolveWeather(venue, data.gameInfo?.weather);
+
+    // Normalize Boxscore (ensure teams are aligned)
     const boxscore = {
       teams: (data.boxscore?.teams || []).map(t => ({
         team: {
@@ -331,7 +543,7 @@ export async function getGameSummary(sport, league, eventId) {
         team: {
           id: p.team?.id,
           name: p.team?.displayName || p.team?.name,
-          logo: p.team?.logo
+          logo: p.team?.logo || (p.team?.logos && p.team.logos[0]?.href)
         },
         statistics: (p.statistics || []).map(cat => ({
           name: cat.name || cat.type || 'Stats',
@@ -369,7 +581,6 @@ export async function getGameSummary(sport, league, eventId) {
         type: p.type?.text || p.type?.description
       }));
     } else if (data.drives) {
-      // Football drives
       const allDrives = [
         ...(data.drives.previous || []),
         ...(data.drives.current ? [data.drives.current] : [])
@@ -395,7 +606,6 @@ export async function getGameSummary(sport, league, eventId) {
         }))
       }));
     } else if (data.commentary) {
-      // Soccer minute commentary
       plays = data.commentary.map(c => ({
         id: c.id,
         text: c.text,
@@ -405,29 +615,186 @@ export async function getGameSummary(sport, league, eventId) {
       }));
     }
 
-    // Scoring Plays
-    const scoringPlays = (data.scoringPlays || data.keyEvents || []).map(sp => ({
-      id: sp.id,
-      text: sp.text || sp.description,
-      awayScore: sp.awayScore,
-      homeScore: sp.homeScore,
-      period: sp.period?.displayValue || (sp.period?.number ? `Quarter ${sp.period.number}` : (sp.clock?.displayValue || '')),
-      clock: sp.clock?.displayValue,
-      team: sp.team ? {
-        id: sp.team.id,
-        name: sp.team.displayName || sp.team.name,
-        logo: sp.team.logos?.[0]?.href || sp.team.logo
-      } : null,
-      type: sp.type?.text || sp.type?.description
-    }));
+    // Scoring Plays & Key Events (Soccer, Football, Baseball)
+    const rawEvents = data.scoringPlays || data.keyEvents || [];
+    const scoringPlays = rawEvents.map(sp => {
+      const text = sp.text || sp.description || '';
+      let eventType = sp.type?.text || sp.type?.description || 'Event';
+      
+      // Classify event type nicely
+      const lower = text.toLowerCase();
+      if (lower.includes('goal') || lower.includes('scores')) eventType = 'GOAL';
+      else if (lower.includes('yellow card')) eventType = 'YELLOW CARD';
+      else if (lower.includes('red card')) eventType = 'RED CARD';
+      else if (lower.includes('substitution') || lower.includes('sub')) eventType = 'SUBSTITUTION';
+      else if (lower.includes('touchdown') || lower.includes('td')) eventType = 'TOUCHDOWN';
+      else if (lower.includes('field goal') || lower.includes('fg')) eventType = 'FIELD GOAL';
+      else if (lower.includes('home run')) eventType = 'HOME RUN';
 
-    // Win Probability Chart Points
-    const winprobability = (data.winprobability || []).map(wp => ({
-      homeWinPercentage: Math.round((wp.homeWinPercentage || 0) * 100),
-      playId: wp.playId,
-      secondsLeft: wp.secondsLeft,
-      text: wp.play?.text
-    }));
+      return {
+        id: sp.id,
+        text,
+        awayScore: sp.awayScore !== undefined && sp.awayScore !== null ? sp.awayScore : null,
+        homeScore: sp.homeScore !== undefined && sp.homeScore !== null ? sp.homeScore : null,
+        period: sp.period?.displayValue || (sp.period?.number ? `Period ${sp.period.number}` : (sp.clock?.displayValue || '')),
+        clock: sp.clock?.displayValue,
+        team: sp.team ? {
+          id: sp.team.id,
+          name: sp.team.displayName || sp.team.name,
+          logo: sp.team.logos?.[0]?.href || sp.team.logo
+        } : null,
+        type: eventType
+      };
+    });
+
+    // Calculate Win Probability Projection & Matchup Predictor
+    const compStatus = data.header?.competitions?.[0]?.status?.type;
+    const isLiveInPlay = compStatus?.state === 'in';
+    const isFinalGame = compStatus?.completed === true || compStatus?.state === 'post';
+
+    const homeComp = data.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'home');
+    const awayComp = data.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'away');
+    const homeScore = parseInt(homeComp?.score || 0, 10);
+    const awayScore = parseInt(awayComp?.score || 0, 10);
+
+    let homeWinProb = 50;
+    let awayWinProb = 50;
+    let projectionSource = 'Baseline Statistical Model';
+
+    // Priority 1: Official ESPN Matchup Predictor (FPI/BPI)
+    if (data.predictor) {
+      const pHome = parseFloat(data.predictor.homeTeam?.gameProjection);
+      const pAway = parseFloat(data.predictor.awayTeam?.gameProjection);
+      if (!isNaN(pHome) && !isNaN(pAway) && (pHome > 0 || pAway > 0)) {
+        const total = pHome + pAway;
+        homeWinProb = Math.round((pHome / total) * 100);
+        awayWinProb = 100 - homeWinProb;
+        projectionSource = data.predictor.header || 'ESPN Matchup Predictor (FPI/BPI)';
+      }
+    }
+    // Priority 2: Real-time live win probability feed
+    else if (data.winprobability?.length > 0) {
+      const lastPoint = data.winprobability[data.winprobability.length - 1];
+      if (lastPoint && typeof lastPoint.homeWinPercentage === 'number') {
+        homeWinProb = Math.max(1, Math.min(99, Math.round(lastPoint.homeWinPercentage * 100)));
+        awayWinProb = 100 - homeWinProb;
+        projectionSource = 'ESPN Real-Time Live Win Probability Model';
+      }
+    }
+    // Priority 3: Consensus Odds / Pickcenter Moneyline or Spread
+    else if (data.pickcenter?.length || data.odds?.length) {
+      const oddsItem = (data.pickcenter || data.odds)[0];
+      const homeML = oddsItem?.homeTeamOdds?.moneyLine;
+      const awayML = oddsItem?.awayTeamOdds?.moneyLine;
+      if (homeML && awayML && typeof homeML === 'number' && typeof awayML === 'number') {
+        const calcProb = (ml) => ml < 0 ? (-ml / (-ml + 100)) : (100 / (ml + 100));
+        const hRaw = calcProb(homeML);
+        const aRaw = calcProb(awayML);
+        if (hRaw + aRaw > 0) {
+          homeWinProb = Math.round((hRaw / (hRaw + aRaw)) * 100);
+          awayWinProb = 100 - homeWinProb;
+          projectionSource = `Market Implied (${oddsItem.provider?.name || 'Consensus Odds'})`;
+        }
+      } else if (oddsItem?.spread !== undefined && oddsItem.spread !== null) {
+        const spread = parseFloat(oddsItem.spread);
+        if (!isNaN(spread)) {
+          homeWinProb = Math.max(5, Math.min(95, Math.round(50 - spread * 3)));
+          awayWinProb = 100 - homeWinProb;
+          projectionSource = `Spread-Implied Model (${oddsItem.details || `Spread: ${spread}`})`;
+        }
+      }
+    }
+
+    // Adjust for completed and live games if no official ESPN live model
+    if (isFinalGame) {
+      homeWinProb = homeScore > awayScore ? 100 : (awayScore > homeScore ? 0 : 50);
+      awayWinProb = 100 - homeWinProb;
+      projectionSource = 'Official Final Result';
+    } else if (isLiveInPlay && !data.winprobability?.length) {
+      const diff = homeScore - awayScore;
+      const period = data.header?.competitions?.[0]?.status?.period || 1;
+      const multiplier = period >= 4 ? 12 : period >= 3 ? 9 : 6;
+      homeWinProb = Math.max(2, Math.min(98, 50 + diff * multiplier));
+      awayWinProb = 100 - homeWinProb;
+      projectionSource = 'Live In-Game Momentum Tracker';
+    }
+
+    const projection = {
+      homeWinPercentage: homeWinProb,
+      awayWinPercentage: awayWinProb,
+      projectedWinner: homeWinProb > awayWinProb ? 'home' : (awayWinProb > homeWinProb ? 'away' : 'even'),
+      source: projectionSource,
+      isLive: isLiveInPlay,
+      isFinal: isFinalGame
+    };
+
+    // Formulate clean, plottable Win Probability Chart Points
+    let winprobability = [];
+
+    if (data.winprobability && data.winprobability.length > 0) {
+      const totalPts = data.winprobability.length;
+      const step = Math.max(1, Math.floor(totalPts / 50));
+      const sampled = [];
+      for (let i = 0; i < totalPts; i += step) {
+        sampled.push(data.winprobability[i]);
+      }
+      if (sampled[sampled.length - 1] !== data.winprobability[totalPts - 1]) {
+        sampled.push(data.winprobability[totalPts - 1]);
+      }
+
+      winprobability = sampled.map((wp, idx) => {
+        const hPct = Math.max(0, Math.min(100, Math.round((wp.homeWinPercentage || 0) * 100)));
+        return {
+          step: idx + 1,
+          index: idx,
+          homeWinPercentage: hPct,
+          awayWinPercentage: 100 - hPct,
+          playId: wp.playId || String(idx),
+          text: wp.play?.text || (idx === 0 ? 'Game Start' : `Play #${idx * step + 1}`)
+        };
+      });
+    } else if (scoringPlays.length > 0) {
+      winprobability.push({
+        step: 1,
+        index: 0,
+        homeWinPercentage: 50,
+        awayWinPercentage: 50,
+        text: 'Kickoff / Start'
+      });
+
+      let currentHome = 50;
+      scoringPlays.forEach((sp, idx) => {
+        if (sp.homeScore !== null && sp.awayScore !== null) {
+          const diff = sp.homeScore - sp.awayScore;
+          currentHome = Math.max(5, Math.min(95, 50 + diff * 8));
+        } else if (sp.type === 'GOAL' || sp.type === 'TOUCHDOWN') {
+          currentHome = Math.max(10, Math.min(90, currentHome + (sp.team ? 15 : 0)));
+        }
+        winprobability.push({
+          step: idx + 2,
+          index: idx + 1,
+          homeWinPercentage: Math.round(currentHome),
+          awayWinPercentage: 100 - Math.round(currentHome),
+          text: sp.text?.slice(0, 45) || sp.type
+        });
+      });
+
+      if (isFinalGame) {
+        winprobability.push({
+          step: winprobability.length + 1,
+          index: winprobability.length,
+          homeWinPercentage: homeScore > awayScore ? 100 : (awayScore > homeScore ? 0 : 50),
+          awayWinPercentage: awayScore > homeScore ? 100 : (homeScore > awayScore ? 0 : 50),
+          text: 'Final'
+        });
+      }
+    } else {
+      // Pre-game projection curve
+      winprobability = [
+        { step: 1, index: 0, homeWinPercentage: 50, awayWinPercentage: 50, text: 'Neutral Baseline (50%)' },
+        { step: 2, index: 1, homeWinPercentage: homeWinProb, awayWinPercentage: awayWinProb, text: `Projected (${projectionSource})` }
+      ];
+    }
 
     // Article / Recap
     const article = data.article ? {
@@ -454,20 +821,9 @@ export async function getGameSummary(sport, league, eventId) {
 
     // Game Info
     const gameInfo = {
-      venue: data.gameInfo?.venue ? {
-        name: data.gameInfo.venue.fullName,
-        city: data.gameInfo.venue.address?.city,
-        state: data.gameInfo.venue.address?.state,
-        capacity: data.gameInfo.venue.capacity,
-        indoor: data.gameInfo.venue.indoor
-      } : null,
+      venue,
       attendance: data.gameInfo?.attendance,
-      weather: data.gameInfo?.weather ? {
-        temperature: data.gameInfo.weather.temperature,
-        displayValue: data.gameInfo.weather.displayValue,
-        condition: data.gameInfo.weather.conditionId,
-        wind: data.gameInfo.weather.wind
-      } : null,
+      weather,
       officials: (data.gameInfo?.officials || []).map(o => ({
         name: o.displayName,
         position: o.position?.name
@@ -499,6 +855,7 @@ export async function getGameSummary(sport, league, eventId) {
       isDrives: Boolean(data.drives),
       scoringPlays,
       winprobability,
+      projection,
       article,
       news,
       gameInfo,

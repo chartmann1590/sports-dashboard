@@ -63,13 +63,11 @@ export default function App() {
         }
 
         setGames(data.games || []);
-        if (data.leagues) setLeagues(data.leagues);
+        if (data.leagues) {
+          setLeagues(data.leagues);
+        }
       } else {
-        const found = leagues.find(l => l.id === selectedLeagueId);
-        const sport = found?.sport || 'football';
-        const league = found?.league || selectedLeagueId;
-
-        const res = await fetch(`/api/scores?sport=${sport}&league=${league}&date=${selectedDate}`);
+        const res = await fetch(`/api/scores?league=${encodeURIComponent(selectedLeagueId)}&date=${selectedDate}`);
         const data = await res.json();
         setGames(data.events || []);
       }
@@ -81,13 +79,29 @@ export default function App() {
     }
   };
 
-  // Fetch initial news for breaking ticker
+  // Fetch supported leagues list on mount
   useEffect(() => {
-    fetch('/api/news?sport=football&league=nfl')
+    fetch('/api/leagues')
+      .then(res => res.json())
+      .then(data => {
+        if (data.leagues?.length) {
+          setLeagues(prev => {
+            if (!prev.length) return data.leagues;
+            return prev;
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch news for breaking ticker dynamically based on selected league
+  useEffect(() => {
+    const targetLeague = selectedLeagueId !== 'all' ? selectedLeagueId : 'nfl';
+    fetch(`/api/news?league=${encodeURIComponent(targetLeague)}`)
       .then(res => res.json())
       .then(data => setNewsArticles(data.articles || []))
       .catch(() => {});
-  }, []);
+  }, [selectedLeagueId]);
 
   // Effect: Date or League change triggers load
   useEffect(() => {
@@ -327,6 +341,7 @@ export default function App() {
         isOpen={isNewsOpen}
         onClose={() => setIsNewsOpen(false)}
         defaultLeague={selectedLeagueId !== 'all' ? selectedLeagueId : 'nfl'}
+        leagues={leagues}
       />
 
     </div>

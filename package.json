@@ -10,7 +10,7 @@
     "build": "npm run build:client",
     "dev:server": "node server/index.js",
     "dev:client": "npm --prefix client run dev",
-    "test:e2e": "node test-e2e.js"
+    "test:e2e": "python test_e2e.py"
   },
   "dependencies": {
     "compression": "^1.8.2",

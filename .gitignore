@@ -18,6 +18,7 @@ yarn-error.log*
 Thumbs.db
 .serena/
 .claude/
+graphify-out/
 
 # IDEs
 .idea/

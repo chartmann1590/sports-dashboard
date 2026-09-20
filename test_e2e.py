@@ -103,6 +103,14 @@ def run_tests():
                 print("   Game Info & Odds tab tested.")
                 page.screenshot(path=os.path.join(screenshots_dir, "7-game-modal-info.png"))
 
+            # Win Probability & Projections Tab
+            winprob_tab = page.locator("button:has-text('Win Probability')")
+            if winprob_tab.is_visible():
+                winprob_tab.click()
+                time.sleep(1.5)
+                print("   Win Probability & Matchup Projections tab tested.")
+                page.screenshot(path=os.path.join(screenshots_dir, "10-game-modal-winprob.png"))
+
             # Close Modal
             page.keyboard.press("Escape")
             time.sleep(1)

@@ -66,8 +66,14 @@ export default function GameCard({ game, onClick }) {
           )}
         </div>
 
-        {/* Right: Broadcast & Odds */}
-        <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+        {/* Right: Broadcast, Weather & Odds */}
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+          {game.weather?.temperature !== null && game.weather?.temperature !== undefined && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/60 text-amber-300 text-[10px] font-semibold">
+              <span>{game.weather.indoor ? '🏟️' : '☀️'}</span>
+              <span>{game.weather.indoor ? 'Dome' : `${game.weather.temperature}°`}</span>
+            </span>
+          )}
           {broadcasts.length > 0 && (
             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/60 text-slate-300 text-[10px] font-bold">
               <Tv className="w-2.5 h-2.5 text-cyan-400" />
