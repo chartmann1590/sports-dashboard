@@ -32,7 +32,14 @@ const getCompletedPeriodLabel = (game, period) => {
 
 export default function App() {
   const [selectedDate, setSelectedDate] = useState(getTodayString());
-  const [selectedLeagueId, setSelectedLeagueId] = useState('all');
+  const [selectedLeagueId, setSelectedLeagueId] = useState(() => {
+    try {
+      // Honor PWA shortcut launches such as /?league=nfl
+      return new URLSearchParams(window.location.search).get('league') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(15);
   const [countdown, setCountdown] = useState(15);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -60,7 +67,15 @@ export default function App() {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'live', 'upcoming', 'final'
+  // 'all', 'live', 'upcoming', 'final' — honors PWA shortcut launches like /?filter=live
+  const [statusFilter, setStatusFilter] = useState(() => {
+    try {
+      const f = new URLSearchParams(window.location.search).get('filter');
+      return ['all', 'live', 'upcoming', 'final'].includes(f) ? f : 'all';
+    } catch {
+      return 'all';
+    }
+  });
   const [sortBy, setSortBy] = useState('live-first');
 
   // Track previous game states to trigger notifications, audio & confetti on live changes
@@ -592,8 +607,27 @@ export default function App() {
         isOpen={isNotificationModalOpen}
         onClose={() => setIsNotificationModalOpen(false)}
         onSelectGame={(gameId) => {
-          const g = games.find(x => x.id === gameId);
-          if (g) setSelectedGame(g);
+          const g = games.find(x => String(x.id) === String(gameId));
+          if (g) {
+            setSelectedGame(g);
+            return;
+          }
+          // The tracked game may belong to another league/date than the board
+          // currently shows — fall back to the stored subscription details so
+          // the tap still opens the game instead of silently doing nothing.
+          const sub = getSubscriptions()[gameId];
+          if (sub) {
+            if (sub.league && sub.league !== selectedLeagueId) {
+              setSelectedLeagueId(sub.league);
+            }
+            setSelectedGame({
+              id: sub.gameId || gameId,
+              league: sub.league,
+              sport: sub.sport,
+              homeTeam: { displayName: sub.homeTeam?.name, logo: sub.homeTeam?.logo },
+              awayTeam: { displayName: sub.awayTeam?.name, logo: sub.awayTeam?.logo },
+            });
+          }
         }}
       />
 
