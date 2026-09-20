@@ -75,6 +75,9 @@ export default function GameDetailsModal({ game, onClose }) {
   const [activeTab, setActiveTab] = useState('scoring'); // 'scoring', 'plays', 'boxscore', 'winprob', 'gameinfo', 'recap'
   const [subscribed, setSubscribed] = useState(isGameSubscribed(game.id));
   const [alertPrefs, setAlertPrefs] = useState(getGameAlertPreferences(game.id));
+  // Keys the user explicitly customized for this game (persisted as overrides
+  // so untweaked triggers keep following the global preferences)
+  const [prefOverrides, setPrefOverrides] = useState({});
   const [showAlertMenu, setShowAlertMenu] = useState(false);
 
   const handleToggleSub = async () => {
@@ -83,7 +86,7 @@ export default function GameDetailsModal({ game, onClose }) {
       if (getNotificationPermission() === 'default') {
         await requestNotificationPermission();
       }
-      subscribeToGame(game, alertPrefs);
+      subscribeToGame(game, prefOverrides);
       setSubscribed(true);
       setShowAlertMenu(true);
     } else {
@@ -95,9 +98,12 @@ export default function GameDetailsModal({ game, onClose }) {
 
   const handleTogglePref = (key) => {
     playClickSound();
-    const updated = { ...alertPrefs, [key]: !alertPrefs[key] };
-    setAlertPrefs(updated);
-    updateGamePreferences(game.id, updated);
+    const resolved = getGameAlertPreferences(game.id);
+    const newValue = !resolved[key];
+    const overrides = { ...prefOverrides, [key]: newValue };
+    setPrefOverrides(overrides);
+    setAlertPrefs({ ...resolved, [key]: newValue });
+    updateGamePreferences(game.id, overrides);
   };
 
   // Fetch deep summary from backend
