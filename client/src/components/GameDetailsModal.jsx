@@ -154,11 +154,14 @@ export default function GameDetailsModal({ game, onClose }) {
   const homeLines = homeTeam.linescores || [];
   const maxLines = Math.max(awayLines.length, homeLines.length);
 
-  const getLineHeader = (index, total) => {
-    if (total <= 2) return index === 0 ? '1H' : '2H';
-    if (total === 4) return `Q${index + 1}`;
-    if (total > 4 && total <= 9) return `${index + 1}`;
-    return `${index + 1}`;
+  // Header labels come from the sport, not from how many periods have been
+  // played so far — a live MLB game with 2 entries isn't "1H/2H".
+  const getLineHeader = (index) => {
+    const s = (sport || '').toLowerCase();
+    if (s === 'baseball') return `${index + 1}`;
+    if (s === 'hockey') return `P${index + 1}`;
+    if (s === 'soccer') return index === 0 ? '1H' : '2H';
+    return `Q${index + 1}`;
   };
 
   // Find boxscore teams mapped to away and home
@@ -366,7 +369,7 @@ export default function GameDetailsModal({ game, onClose }) {
                   <tr className="text-slate-400 border-b border-slate-800">
                     <th className="text-left py-1 pr-3">TEAM</th>
                     {Array.from({ length: maxLines }).map((_, i) => (
-                      <th key={i} className="px-2 py-1">{getLineHeader(i, maxLines)}</th>
+                      <th key={i} className="px-2 py-1">{getLineHeader(i)}</th>
                     ))}
                     <th className="px-2 py-1 text-white font-bold">TOTAL</th>
                   </tr>
