@@ -121,15 +121,20 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Notification Click Handler - Focus or open dashboard
+// Notification Click Handler - Focus or open dashboard, navigating to the target
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
+          // Navigate the already-open dashboard to the notification target
+          // (e.g. /?gameId=...) so the tapped game actually opens, then focus it.
+          if ('navigate' in client) {
+            return client.navigate(targetUrl).then((navigatedClient) => navigatedClient.focus());
+          }
           return client.focus();
         }
       }
