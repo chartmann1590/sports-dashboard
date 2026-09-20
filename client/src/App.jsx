@@ -109,6 +109,7 @@ export default function App() {
   const checkGameNotifications = (incomingGames) => {
     if (!incomingGames || !incomingGames.length) return;
     const currentSubs = getSubscriptions();
+
     incomingGames.forEach(game => {
       const sub = currentSubs[game.id];
       const prev = previousGameStateRef.current[game.id];
