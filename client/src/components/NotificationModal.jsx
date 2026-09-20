@@ -100,7 +100,7 @@ export default function NotificationModal({ isOpen, onClose, onSelectGame }) {
                 Live Game Notifications
               </h2>
               <p className="text-xs text-slate-400">
-                PWA background & browser alerts for touchdowns, quarters, and final scores
+                PWA & browser alerts for touchdowns, quarters, and final scores while the dashboard is open
               </p>
             </div>
           </div>
@@ -173,7 +173,7 @@ export default function NotificationModal({ isOpen, onClose, onSelectGame }) {
                   <span className="text-xl">🏈</span>
                   <div>
                     <p className="text-sm font-bold text-white">Touchdowns & Scoring Plays</p>
-                    <p className="text-xs text-slate-400">Live TDs, goals, field goals, and home runs</p>
+                    <p className="text-xs text-slate-400">Live TDs, goals, field goals, and runs scored</p>
                   </div>
                 </div>
                 <input 
