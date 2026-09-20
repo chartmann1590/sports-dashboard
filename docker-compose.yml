@@ -1,0 +1,17 @@
+services:
+  sports-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sports-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
