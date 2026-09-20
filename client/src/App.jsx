@@ -18,6 +18,18 @@ import {
 } from './utils/notifications';
 import { Flame, Radio, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 
+// Sport-aware label for a completed period (quarter / inning / period / half)
+const getCompletedPeriodLabel = (game, period) => {
+  const sport = (game.sport || '').toLowerCase();
+  const ordinal = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
+  if (sport === 'baseball') return `${ordinal(period)} Inning`;
+  if (sport === 'hockey') return `${ordinal(period)} Period`;
+  if (sport === 'soccer') return period <= 1 ? '1st Half' : '2nd Half';
+  // Football, basketball and others play quarters
+  if (period === 2) return 'Halftime';
+  return `${ordinal(period)} Quarter`;
+};
+
 export default function App() {
   const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [selectedLeagueId, setSelectedLeagueId] = useState('all');
@@ -37,6 +49,15 @@ export default function App() {
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [subscriptions, setSubscriptions] = useState(getSubscriptions());
   const [installPrompt, setInstallPrompt] = useState(null);
+
+  // Deep-link target when launched from a game notification (?gameId=...)
+  const [deepLinkGameId, setDeepLinkGameId] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('gameId');
+    } catch {
+      return null;
+    }
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'live', 'upcoming', 'final'
@@ -129,7 +150,9 @@ export default function App() {
               scoreType = 'GOAL';
               iconEmoji = '⚽';
             } else if (isBaseball) {
-              scoreType = homeDiff > 1 ? `${homeDiff}-RUN HOME RUN` : 'RUN SCORED';
+              // Never infer a home run from aggregate score deltas — one polling
+              // interval can include runs from walks, errors, or multiple plays.
+              scoreType = homeDiff > 1 ? `${homeDiff} RUNS SCORED` : 'RUN SCORED';
               iconEmoji = '⚾';
             }
           } else if (awayDiff > 0) {
@@ -144,7 +167,9 @@ export default function App() {
               scoreType = 'GOAL';
               iconEmoji = '⚽';
             } else if (isBaseball) {
-              scoreType = awayDiff > 1 ? `${awayDiff}-RUN HOME RUN` : 'RUN SCORED';
+              // Never infer a home run from aggregate score deltas — one polling
+              // interval can include runs from walks, errors, or multiple plays.
+              scoreType = awayDiff > 1 ? `${awayDiff} RUNS SCORED` : 'RUN SCORED';
               iconEmoji = '⚾';
             }
           }
@@ -160,7 +185,7 @@ export default function App() {
 
         // 2. QUARTER / PERIOD UPDATE ALERT
         if (prefs.quarters && ((currPeriod > prev.period && currPeriod > 1) || (currDetail !== prev.detail && currDetail.toLowerCase().includes('half')))) {
-          const periodLabel = prev.period === 1 ? '1st Quarter' : prev.period === 2 ? 'Halftime' : prev.period === 3 ? '3rd Quarter' : `Period ${prev.period}`;
+          const periodLabel = getCompletedPeriodLabel(game, prev.period);
           sendGameAlert({
             title: `⏱️ ${periodLabel} Update: ${game.awayTeam?.displayName} vs ${game.homeTeam?.displayName}`,
             body: `Score: ${game.awayTeam?.displayName} ${currAway}, ${game.homeTeam?.displayName} ${currHome} • ${currDetail}`,
@@ -193,6 +218,24 @@ export default function App() {
         isFinal
       };
     });
+  };
+
+  // Independent notification poll: fetch the full all-leagues scoreboard for
+  // the given dates and run alert checks regardless of the displayed
+  // league/date filter, so subscribed games are never silently missed.
+  const pollSubscribedGames = async (dates) => {
+    const subs = getSubscriptions();
+    if (!Object.keys(subs).length) return;
+    const uniqueDates = [...new Set(dates)];
+    for (const date of uniqueDates) {
+      try {
+        const res = await fetch(`/api/scores/all?date=${date}`);
+        const data = await res.json();
+        checkGameNotifications(data.games || []);
+      } catch (err) {
+        console.warn(`Subscription poll failed for ${date}:`, err);
+      }
+    }
   };
 
   // Fetch data
@@ -235,9 +278,19 @@ export default function App() {
         const res = await fetch(`/api/scores?league=${encodeURIComponent(selectedLeagueId)}&date=${selectedDate}`);
         const data = await res.json();
         const incoming = data.events || [];
-        checkGameNotifications(incoming);
         setGames(incoming);
       }
+
+      // Poll subscribed games independently of the active league/date filter
+      // so scoring and final alerts for tracked games are never missed.
+      // The main fetch above already covers all leagues for the selected date,
+      // so only today's board needs an extra poll in that case.
+      const todayString = getTodayString();
+      await pollSubscribedGames(
+        selectedLeagueId === 'all'
+          ? [todayString].filter((d) => d !== selectedDate)
+          : [selectedDate, todayString]
+      );
     } catch (err) {
       console.error('Failed to load sports data:', err);
     } finally {
@@ -293,6 +346,23 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [autoRefreshInterval, selectedDate, selectedLeagueId, isAudioEnabled]);
+
+  // Effect: consume a notification deep-link (?gameId=...) by opening the game
+  useEffect(() => {
+    if (!deepLinkGameId || !games.length) return;
+    const target = games.find((g) => String(g.id) === String(deepLinkGameId));
+    if (target) {
+      setSelectedGame(target);
+      setDeepLinkGameId(null);
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('gameId');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+      } catch {
+        /* ignore URL cleanup failures */
+      }
+    }
+  }, [games, deepLinkGameId]);
 
   // Calculate live count by league
   const liveCountByLeague = useMemo(() => {
@@ -505,7 +575,7 @@ export default function App() {
           onClose={() => setIsTVMode(false)}
           selectedDate={selectedDate}
           totalLiveCount={liveCountByLeague['all'] || 0}
-          onOpenGame={(g) => setSelectedGame(g)}
+          onSelectGame={(g) => setSelectedGame(g)}
         />
       )}
 
