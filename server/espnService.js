@@ -767,8 +767,15 @@ export async function getGameSummary(sport, league, eventId) {
         if (sp.homeScore !== null && sp.awayScore !== null) {
           const diff = sp.homeScore - sp.awayScore;
           currentHome = Math.max(5, Math.min(95, 50 + diff * 8));
-        } else if (sp.type === 'GOAL' || sp.type === 'TOUCHDOWN') {
-          currentHome = Math.max(10, Math.min(90, currentHome + (sp.team ? 15 : 0)));
+        } else if ((sp.type === 'GOAL' || sp.type === 'TOUCHDOWN') && sp.team?.id) {
+          // Attribute the swing to the team that actually scored: an away-team
+          // goal must move the chart toward the away team, not the home team.
+          const scorerId = String(sp.team.id);
+          if (scorerId === String(homeComp?.id)) {
+            currentHome = Math.max(10, Math.min(90, currentHome + 15));
+          } else if (scorerId === String(awayComp?.id)) {
+            currentHome = Math.max(10, Math.min(90, currentHome - 15));
+          }
         }
         winprobability.push({
           step: idx + 2,
