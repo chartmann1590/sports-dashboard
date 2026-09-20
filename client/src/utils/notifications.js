@@ -1,4 +1,4 @@
-﻿import { playScoreSound } from './audio';
+import { playScoreSound } from './audio';
 
 const STORAGE_KEY_SUBSCRIPTIONS = 'arenapulse_game_subscriptions';
 const STORAGE_KEY_GLOBAL_PREFS = 'arenapulse_global_alert_prefs';
@@ -76,18 +76,22 @@ export function isGameSubscribed(gameId) {
 }
 
 export function getGameAlertPreferences(gameId) {
+  const global = getGlobalPreferences();
   const subs = getSubscriptions();
-  if (subs[gameId] && subs[gameId].preferences) {
-    return { ...DEFAULT_PREFERENCES, ...subs[gameId].preferences };
+  const sub = subs[gameId];
+  // Only keys the user explicitly customized for this game override the
+  // global triggers; everything else follows the global preferences, so
+  // toggling a global trigger applies to already-tracked games too.
+  if (sub && sub.preferenceOverrides) {
+    return { ...global, ...sub.preferenceOverrides };
   }
-  return getGlobalPreferences();
+  return global;
 }
 
 export function subscribeToGame(game, customPreferences = null) {
   if (!game || !game.id) return;
   const subs = getSubscriptions();
-  const globalPrefs = getGlobalPreferences();
-  
+
   subs[game.id] = {
     gameId: game.id,
     subscribedAt: new Date().toISOString(),
@@ -102,7 +106,9 @@ export function subscribeToGame(game, customPreferences = null) {
       name: game.awayTeam?.displayName || game.awayTeam?.name || 'Away',
       logo: game.awayTeam?.logo
     },
-    preferences: customPreferences ? { ...globalPrefs, ...customPreferences } : { ...globalPrefs }
+    // Store only explicitly customized per-game keys (not a full snapshot),
+    // so untweaked games keep following the global triggers.
+    preferenceOverrides: customPreferences ? { ...customPreferences } : {}
   };
 
   saveSubscriptions(subs);
@@ -129,10 +135,13 @@ export function toggleGameSubscription(game) {
   }
 }
 
-export function updateGamePreferences(gameId, preferences) {
+export function updateGamePreferences(gameId, overrides) {
   const subs = getSubscriptions();
   if (subs[gameId]) {
-    subs[gameId].preferences = { ...subs[gameId].preferences, ...preferences };
+    subs[gameId].preferenceOverrides = {
+      ...(subs[gameId].preferenceOverrides || {}),
+      ...overrides
+    };
     saveSubscriptions(subs);
   }
 }
