@@ -10,7 +10,7 @@ export function normalizeTVPlays(data) {
       })));
   }
   if (!source?.length) {
-    source = data.commentary || data.keyEvents || data.scoringPlays || [];
+    source = [data.commentary, data.keyEvents, data.scoringPlays].find((s) => s?.length) || [];
     if (source.length > 1 && Number(source[0].sequence) > Number(source.at(-1).sequence)) source = [...source].reverse();
   }
   const seen = new Set();
