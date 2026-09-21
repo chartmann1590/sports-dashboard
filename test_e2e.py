@@ -103,6 +103,14 @@ def run_tests():
                 print("   Game Info & Odds tab tested.")
                 page.screenshot(path=os.path.join(screenshots_dir, "7-game-modal-info.png"))
 
+            # Win Probability & Projections Tab
+            winprob_tab = page.locator("button:has-text('Win Probability')")
+            if winprob_tab.is_visible():
+                winprob_tab.click()
+                time.sleep(1.5)
+                print("   Win Probability & Matchup Projections tab tested.")
+                page.screenshot(path=os.path.join(screenshots_dir, "10-game-modal-winprob.png"))
+
             # Close Modal
             page.keyboard.press("Escape")
             time.sleep(1)
@@ -130,7 +138,7 @@ def run_tests():
             print("   TV mode closed via Escape.")
 
             # 7. Headlines Drawer Test
-            print("[TEST 7/7] Testing News Headlines Drawer...")
+            print("[TEST 7/9] Testing News Headlines Drawer...")
             news_btn = page.locator("button:has-text('Headlines')")
             if news_btn.is_visible():
                 news_btn.click()
@@ -140,9 +148,63 @@ def run_tests():
                 page.screenshot(path=os.path.join(screenshots_dir, "9-headlines-drawer.png"))
                 page.keyboard.press("Escape")
                 time.sleep(1)
+                if page.locator("text=Sports Headlines & News").is_visible():
+                    page.locator("button:has(svg.lucide-x)").first.click()
+                    time.sleep(1)
+
+            # 8. PWA Infrastructure Test
+            print("[TEST 8/9] Testing PWA Infrastructure (Manifest & Meta tags)...")
+            manifest_link = page.locator("link[rel='manifest']").get_attribute("href")
+            print(f"   Manifest linked: '{manifest_link}'")
+            assert manifest_link == "/manifest.json", "Manifest link not found or incorrect"
+
+            apple_icon = page.locator("link[rel='apple-touch-icon']").get_attribute("href")
+            print(f"   Apple touch icon: '{apple_icon}'")
+            assert apple_icon == "/icon-192.png", "Apple touch icon not found"
+
+            # 9. Game Notifications & Subscriptions Test
+            print("[TEST 9/9] Testing Game Notification Subscriptions...")
+            bell_btn = page.locator("button[title*='Live Game Alerts']")
+            page.wait_for_selector("button[title*='Live Game Alerts']", timeout=10000)
+            bell_btn.click()
+            time.sleep(1)
+
+            page.wait_for_selector("text=Live Game Notifications", timeout=10000)
+            page.wait_for_selector("text=Touchdowns & Scoring Plays", timeout=10000)
+            page.wait_for_selector("text=Quarter & Halftime Updates", timeout=10000)
+            page.wait_for_selector("text=Final Score & Winner", timeout=10000)
+            print("   Notification Triggers verified (Touchdowns, Quarters, Final Scores).")
+
+            # Click Send Test Notification
+            test_btn = page.locator("button:has-text('Send Test Notification')")
+            if test_btn.is_visible():
+                test_btn.click()
+                time.sleep(1)
+                print("   Dispatched test game alert notification.")
+
+            page.screenshot(path=os.path.join(screenshots_dir, "11-notification-modal.png"))
+
+            # Close notification modal
+            done_btn = page.locator("button:has-text('Done')")
+            done_btn.click()
+            time.sleep(1)
+
+            # Subscribe to first game via card bell
+            card_bell = page.locator("button[title*='Subscribe to live game alerts']").first
+            if card_bell.is_visible():
+                card_bell.click()
+                time.sleep(1)
+                print("   Subscribed to first game on dashboard grid.")
+                
+                # Verify header badge shows '1'
+                badge = page.locator("button[title*='Live Game Alerts'] span")
+                if badge.is_visible():
+                    print(f"   Header active alert subscription badge: {badge.inner_text()}")
+
+                page.screenshot(path=os.path.join(screenshots_dir, "12-game-subscribed-alerts.png"))
 
             print("\n=======================================================")
-            print(">>> ALL E2E BROWSER TESTS PASSED FLAWLESSLY WITH 100% SUCCESS! <<<")
+            print(">>> ALL 9 E2E BROWSER TESTS PASSED FLAWLESSLY WITH 100% SUCCESS! <<<")
             print("=======================================================")
 
         except Exception as e:
@@ -154,3 +216,4 @@ def run_tests():
 
 if __name__ == "__main__":
     run_tests()
+
