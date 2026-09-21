@@ -1,392 +1,171 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Tv, 
-  Clock, 
-  Maximize2, 
-  Minimize2, 
-  X, 
-  Play, 
-  Pause, 
-  ChevronLeft, 
-  ChevronRight, 
-  Flame, 
-  Radio,
-  Sparkles
-} from 'lucide-react';
-import { playClickSound } from '../utils/audio';
-import { formatGameTime } from '../utils/date';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Tv, X, Play, Pause, ChevronLeft, ChevronRight, RotateCcw, Radio, Maximize2, Minimize2, ArrowUpRight } from 'lucide-react';
+import SportField from './SportField';
+import './TVMode.css';
 
-export default function TVMode({ 
-  games, 
-  onClose, 
-  selectedDate, 
-  totalLiveCount,
-  onOpenGame
-}) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [isControlsVisible, setIsControlsVisible] = useState(true);
-  const idleTimeoutRef = useRef(null);
+function Team({ team, home, scheduled }) {
+  return <div className={`tv-team ${home ? 'tv-team-home' : ''}`}>
+    {team.logo && <img src={team.logo} alt="" />}
+    <div><small>{home ? 'HOME' : 'AWAY'} / {team.recordSummary || '—'}</small><h2>{team.displayName}</h2></div>
+    <strong>{scheduled ? '—' : team.score}</strong>
+  </div>;
+}
 
-  // Filter prioritized games: live games first, then tight finishes / top games
-  const prioritizedGames = [...games].sort((a, b) => {
-    if (a.status.isLive && !b.status.isLive) return -1;
-    if (!a.status.isLive && b.status.isLive) return 1;
-    return 0;
-  });
+function GameBroadcast({ game, onOpenGame, onInteracting, modalOpen }) {
+  const [details, setDetails] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [updated, setUpdated] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [replaying, setReplaying] = useState(false);
+  const [replayKey, setReplayKey] = useState(0);
+  const [flat, setFlat] = useState(false);
+  const [panel, setPanel] = useState('plays');
+  const [retry, setRetry] = useState(0);
+  const listRef = useRef(null);
 
-  const activeGame = prioritizedGames[currentIndex] || games[0];
-
-  // Auto-cycle games every 12 seconds if not paused
   useEffect(() => {
-    if (isPaused || prioritizedGames.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % prioritizedGames.length);
-    }, 12000);
-    return () => clearInterval(interval);
-  }, [isPaused, prioritizedGames.length]);
-
-  // Live Clock
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Keyboard controls for TV remotes / keyboards
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose();
-      } else if (e.key === 'ArrowRight') {
-        if (prioritizedGames.length > 0) {
-          playClickSound();
-          setCurrentIndex((prev) => (prev + 1) % prioritizedGames.length);
-        }
-      } else if (e.key === 'ArrowLeft') {
-        if (prioritizedGames.length > 0) {
-          playClickSound();
-          setCurrentIndex((prev) => (prev - 1 + prioritizedGames.length) % prioritizedGames.length);
-        }
-      } else if (e.key === ' ') {
-        e.preventDefault();
-        playClickSound();
-        setIsPaused((prev) => !prev);
-      } else if (e.key === 'Enter' && activeGame) {
-        onOpenGame(activeGame);
+    let disposed = false;
+    let timeout;
+    let controller;
+    async function refresh() {
+      controller = new AbortController();
+      const requestTimeout = setTimeout(() => controller.abort(), 20000);
+      try {
+        const response = await fetch(`/api/game/${encodeURIComponent(game.sport)}/${encodeURIComponent(game.league)}/${encodeURIComponent(game.id)}`, { signal: controller.signal });
+        if (!response.ok) throw new Error('Game feed unavailable');
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        if (!disposed) { setDetails(data); setError(''); setUpdated(new Date()); }
+      } catch {
+        if (!disposed) setError('Could not refresh the game feed. Showing the last available update.');
+      } finally {
+        clearTimeout(requestTimeout);
+        if (!disposed) { setLoading(false); timeout = setTimeout(refresh, 20000); }
       }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [prioritizedGames.length, activeGame, onClose, onOpenGame]);
+    }
+    refresh();
+    return () => { disposed = true; controller.abort(); clearTimeout(timeout); };
+  }, [game.id, game.league, game.sport, retry]);
 
-  // Auto-hide controls after 4 seconds of idle mouse
+  const plays = useMemo(() => details?.visualPlays || [], [details]);
+  const selectedIndex = selectedId === null ? plays.length - 1 : plays.findIndex(p => p.id === selectedId);
+  const selectedPlay = plays[selectedIndex] || plays.at(-1);
+  const following = selectedId === null;
+  useEffect(() => { onInteracting(!following || replaying); return () => onInteracting(false); }, [following, replaying, onInteracting]);
+  useEffect(() => { if (following && listRef.current) listRef.current.scrollTop = 0; }, [plays.length, following]);
   useEffect(() => {
-    const handleMouseMove = () => {
-      setIsControlsVisible(true);
-      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
-      idleTimeoutRef.current = setTimeout(() => {
-        setIsControlsVisible(false);
-      }, 4000);
-    };
+    if (!replaying || modalOpen) return;
+    const timer = setTimeout(() => {
+      if (selectedIndex < plays.length - 1) setSelectedId(plays[selectedIndex + 1].id);
+      else setReplaying(false);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [replaying, selectedIndex, plays, modalOpen]);
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
-    };
-  }, []);
-
-  const formattedTime = currentTime.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true
-  });
-
-  const formattedDate = currentTime.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  });
-
-  return (
-    <div className="fixed inset-0 z-50 bg-[#05070c] text-white flex flex-col justify-between select-none overflow-hidden font-sans">
-      
-      {/* Dynamic Ambient Stadium Background */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900 via-slate-950 to-black"></div>
-
-      {/* TOP BAR: TV Header & Stadium Clock */}
-      <header className={`relative z-10 px-8 py-5 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md transition-opacity duration-300 ${
-        isControlsVisible ? 'opacity-100' : 'opacity-30 hover:opacity-100'
-      }`}>
-        
-        {/* Brand & Mode */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-xl shadow-cyan-500/25">
-            <Tv className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-black tracking-wider text-white">
-                ARENA<span className="text-cyan-400">VISION</span>
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                TV JUMBOTRON
-              </span>
-              {totalLiveCount > 0 && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse">
-                  {totalLiveCount} LIVE NOW
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 font-medium tracking-widest uppercase">
-              Big Screen Sports Center
-            </p>
-          </div>
-        </div>
-
-        {/* Massive Digital Stadium Clock */}
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <div className="text-3xl font-mono font-black text-white tracking-wider">
-              {formattedTime}
-            </div>
-            <div className="text-xs font-medium text-slate-400">
-              {formattedDate}
-            </div>
-          </div>
-
-          {/* TV Quick Controls */}
-          <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 p-1.5 rounded-2xl">
-            <button
-              onClick={() => setIsPaused(!isPaused)}
-              className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition"
-              title={isPaused ? "Resume Auto-cycle (Space)" : "Pause Auto-cycle (Space)"}
-            >
-              {isPaused ? <Play className="w-5 h-5 text-emerald-400" /> : <Pause className="w-5 h-5 text-amber-400" />}
-            </button>
-
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-xl transition"
-              title="Exit TV Mode (Esc)"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-      </header>
-
-      {/* CENTER: Jumbotron Feature Arena */}
-      <main className="relative z-10 px-8 py-6 grow flex flex-col justify-center max-w-7xl mx-auto w-full">
-        {activeGame ? (
-          <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950/90 border-2 border-slate-700/60 rounded-3xl p-8 sm:p-12 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-            
-            {/* Live Indicator Ribbon */}
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <span className="px-3.5 py-1 rounded-xl bg-slate-800 text-sm font-black text-white uppercase tracking-wider">
-                  {activeGame.leagueName || activeGame.league?.toUpperCase()}
-                </span>
-
-                {activeGame.status.isLive ? (
-                  <span className="flex items-center gap-2 px-3 py-1 rounded-xl bg-red-500/20 text-red-400 font-black text-sm border border-red-500/40 animate-pulse">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                    {activeGame.status.detail}
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 rounded-xl bg-slate-800/80 text-slate-300 font-semibold text-sm">
-                    {activeGame.status.detail}
-                  </span>
-                )}
-              </div>
-
-              {/* Game Info Pill */}
-              <div className="flex items-center gap-3 text-sm text-slate-400 font-mono">
-                {activeGame.broadcasts?.length > 0 && (
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-white font-bold">
-                    {activeGame.broadcasts[0]}
-                  </span>
-                )}
-                {activeGame.odds?.details && (
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300">
-                    {activeGame.odds.details}
-                  </span>
-                )}
-                <span className="text-slate-500">
-                  Game {currentIndex + 1} of {prioritizedGames.length}
-                </span>
-              </div>
-            </div>
-
-            {/* Giant Matchup Display */}
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-8 items-center">
-              
-              {/* Away Team */}
-              <div className="md:col-span-3 flex items-center gap-6">
-                <img
-                  src={activeGame.awayTeam.logo}
-                  alt={activeGame.awayTeam.displayName}
-                  className="w-24 h-24 sm:w-32 sm:h-32 object-contain filter drop-shadow-2xl"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/default-team-logo-500.png&w=128';
-                  }}
-                />
-                <div>
-                  <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-                    {activeGame.awayTeam.displayName}
-                  </h3>
-                  <p className="text-base text-slate-400 font-mono mt-1">
-                    {activeGame.awayTeam.recordSummary || 'Away Team'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Big Center Score */}
-              <div className="md:col-span-1 text-center">
-                {activeGame.status.isScheduled ? (
-                  <div className="text-xl font-mono text-slate-400 font-bold">VS</div>
-                ) : (
-                  <div className="flex items-center justify-center gap-4">
-                    <span className="text-5xl sm:text-7xl font-mono font-black text-white tabular-nums">
-                      {activeGame.awayTeam.score}
-                    </span>
-                    <span className="text-3xl text-slate-600 font-mono">-</span>
-                    <span className="text-5xl sm:text-7xl font-mono font-black text-white tabular-nums">
-                      {activeGame.homeTeam.score}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Home Team */}
-              <div className="md:col-span-3 flex items-center justify-end gap-6 text-right">
-                <div>
-                  <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-                    {activeGame.homeTeam.displayName}
-                  </h3>
-                  <p className="text-base text-slate-400 font-mono mt-1">
-                    {activeGame.homeTeam.recordSummary || 'Home Team'}
-                  </p>
-                </div>
-                <img
-                  src={activeGame.homeTeam.logo}
-                  alt={activeGame.homeTeam.displayName}
-                  className="w-24 h-24 sm:w-32 sm:h-32 object-contain filter drop-shadow-2xl"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/default-team-logo-500.png&w=128';
-                  }}
-                />
-              </div>
-
-            </div>
-
-            {/* In-Game Situation Banner for TV */}
-            {activeGame.situation && (activeGame.situation.downDistanceText || activeGame.situation.lastPlay) && (
-              <div className="mt-8 pt-6 border-t border-slate-800/80 bg-slate-950/60 rounded-2xl p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Flame className="w-5 h-5 text-amber-400" />
-                  <span className="text-base font-bold text-amber-400">
-                    {activeGame.situation.downDistanceText}
-                    {activeGame.situation.yardLine && ` • Ball on ${activeGame.situation.yardLine}`}
-                  </span>
-                </div>
-                {activeGame.situation.lastPlay && (
-                  <p className="text-sm text-slate-300 italic truncate max-w-xl">
-                    "{activeGame.situation.lastPlay}"
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Click to open full details */}
-            <div className="mt-6 flex items-center justify-center">
-              <button
-                onClick={() => onOpenGame(activeGame)}
-                className="px-6 py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-sm font-bold transition flex items-center gap-2"
-              >
-                <span>Open Full Game Center & Play-by-Play</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-          </div>
-        ) : (
-          <div className="text-center text-slate-500 py-16 text-xl">
-            No games scheduled for today.
-          </div>
-        )}
-      </main>
-
-      {/* BOTTOM TICKER / CAROUSEL DOCK */}
-      <footer className="relative z-10 bg-[#07090e]/95 border-t border-slate-800 px-8 py-3 flex items-center justify-between">
-        
-        {/* Navigation Arrows */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              if (prioritizedGames.length > 0) {
-                playClickSound();
-                setCurrentIndex((prev) => (prev - 1 + prioritizedGames.length) % prioritizedGames.length);
-              }
-            }}
-            className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
-            title="Previous Game (Left Arrow)"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={() => {
-              if (prioritizedGames.length > 0) {
-                playClickSound();
-                setCurrentIndex((prev) => (prev + 1) % prioritizedGames.length);
-              }
-            }}
-            className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
-            title="Next Game (Right Arrow)"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-
-          <span className="text-xs text-slate-400 font-medium">
-            Use <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-white font-mono text-[10px]">◀</kbd> <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-white font-mono text-[10px]">▶</kbd> to cycle • <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-white font-mono text-[10px]">Space</kbd> to pause
-          </span>
-        </div>
-
-        {/* Thumbnail Preview Strip */}
-        <div className="hidden lg:flex items-center gap-3 overflow-x-auto no-scrollbar max-w-2xl">
-          {prioritizedGames.slice(0, 8).map((g, idx) => (
-            <button
-              key={g.id}
-              onClick={() => {
-                playClickSound();
-                setCurrentIndex(idx);
-              }}
-              className={`p-2 rounded-xl border text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 ${
-                idx === currentIndex
-                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 ring-1 ring-cyan-400'
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <span>{g.awayTeam.abbreviation}</span>
-              <span className="font-mono text-white">{g.awayTeam.score}</span>
-              <span className="text-slate-600">@</span>
-              <span>{g.homeTeam.abbreviation}</span>
-              <span className="font-mono text-white">{g.homeTeam.score}</span>
-              {g.status.isLive && (
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              )}
-            </button>
-          ))}
-        </div>
-
-      </footer>
-
+  const selectPlay = index => { if (plays[index]) { setSelectedId(plays[index].id); setReplaying(false); } };
+  const stats = details?.boxscore?.teams || [];
+  const awayStats = stats.find(t => String(t.team.id) === String(game.awayTeam.id));
+  const homeStats = stats.find(t => String(t.team.id) === String(game.homeTeam.id));
+  const status = details?.rawStatus?.type?.detail || game.status.detail;
+  const competitors = details?.header?.competitions?.[0]?.competitors || [];
+  const currentTeam = (team, side) => ({ ...team, score: competitors.find(c => c.homeAway === side)?.score ?? team.score });
+  return <>
+    <div className="tv-scoreboard">
+      <Team team={currentTeam(game.awayTeam, 'away')} scheduled={game.status.isScheduled} />
+      <div className="tv-game-status"><span>{game.leagueName || game.league.toUpperCase()}</span><strong>{status}</strong><small>{game.broadcasts?.join(' · ') || game.venue?.name || 'Game center'}</small></div>
+      <Team team={currentTeam(game.homeTeam, 'home')} home scheduled={game.status.isScheduled} />
     </div>
-  );
+    <div className="tv-broadcast-grid">
+      <section className="tv-arena" aria-label="Game visualization">
+        <div className="tv-section-heading"><div><span className={`tv-status-dot ${game.status.isLive && following ? 'is-live' : ''}`} />{following ? (game.status.isLive ? 'FOLLOWING LIVE' : game.status.isFinal ? 'FINAL GAME / LAST PLAY' : 'PREGAME') : 'PLAY REPLAY'}</div><button onClick={() => setFlat(!flat)} aria-pressed={flat}>{flat ? '3D field' : 'Overhead view'}</button></div>
+        <SportField game={game} play={selectedPlay} replayKey={replayKey} flat={flat} animate={!modalOpen} />
+        <div className="tv-play-caption" aria-live="polite"><div><span>{selectedPlay?.period} {selectedPlay?.clock}</span>{selectedPlay?.scoringPlay && <b>SCORING PLAY</b>}{!following && <b>REPLAY</b>}</div><p>{selectedPlay?.text || (loading ? 'Loading play-by-play…' : game.status.isScheduled ? 'The matchup is set. Live plays will appear here when coverage begins.' : 'This feed has no play-by-play yet. Team stats and the full game center may still be available.')}</p>{selectedPlay?.awayScore != null && selectedPlay?.homeScore != null && <small>Score after this play: {game.awayTeam.abbreviation} {selectedPlay.awayScore} — {game.homeTeam.abbreviation} {selectedPlay.homeScore}</small>}</div>
+        <div className="tv-replay-controls">
+          <button aria-label="Previous play" disabled={selectedIndex <= 0} onClick={() => selectPlay(selectedIndex - 1)}><ChevronLeft size={19} /></button>
+          <button disabled={!plays.length} onClick={() => { setReplayKey(k => k + 1); setSelectedId(selectedPlay.id); }}><RotateCcw size={17} /> Replay play</button>
+          <button disabled={!plays.length} onClick={() => { if (replaying) setReplaying(false); else { if (following || selectedIndex === plays.length - 1) setSelectedId(plays[Math.max(0, plays.length - 8)].id); setReplaying(true); } }}>{replaying ? <Pause size={17} /> : <Play size={17} />}{replaying ? 'Pause replay' : 'Play sequence'}</button>
+          <button aria-label="Next play" disabled={selectedIndex >= plays.length - 1 || !plays.length} onClick={() => selectPlay(selectedIndex + 1)}><ChevronRight size={19} /></button>
+          <button className={`tv-follow ${following ? 'active' : ''}`} onClick={() => { setSelectedId(null); setReplaying(false); }}><Radio size={17} />{game.status.isLive ? 'Follow live' : 'Latest play'}</button>
+        </div>
+      </section>
+      <aside className="tv-sidebar">
+        <div className="tv-tabs" role="tablist" aria-label="Game information"><button role="tab" aria-selected={panel === 'plays'} onClick={() => setPanel('plays')}>Play-by-play <span>{plays.length}</span></button><button role="tab" aria-selected={panel === 'stats'} onClick={() => setPanel('stats')}>Team stats</button></div>
+        {error && <div className="tv-feed-error" role="status">{error}<button onClick={() => setRetry(n => n + 1)}>Retry</button></div>}
+        {panel === 'plays' ? <div className="tv-play-list" ref={listRef} role="tabpanel" aria-label="Play-by-play">
+          {loading && <div className="tv-loading">Loading game coverage…</div>}
+          {!loading && !plays.length && <div className="tv-empty"><Radio size={28} /><h3>{game.status.isScheduled ? 'Coverage starts with the game' : 'No plays available'}</h3><p>Check team stats or open the full game center. We’ll keep checking for new plays.</p></div>}
+          {[...plays].reverse().map(p => <button key={p.id} className={`tv-play-row ${selectedPlay?.id === p.id ? 'selected' : ''}`} aria-pressed={selectedPlay?.id === p.id} onClick={() => { setSelectedId(p.id); setReplaying(false); }}><span className="tv-play-meta"><span>{p.period} {p.clock}</span><b>{p.scoringPlay ? 'SCORE' : p.type}</b></span><span>{p.text}</span></button>)}
+        </div> : <div className="tv-stats" role="tabpanel" aria-label="Team stats"><div className="tv-stat-head"><b>{game.awayTeam.abbreviation}</b><span>TEAM COMPARISON</span><b>{game.homeTeam.abbreviation}</b></div>{awayStats?.statistics?.length ? awayStats.statistics.map(s => <div className="tv-stat-row" key={s.name}><strong>{s.displayValue}</strong><span>{s.label}</span><strong>{homeStats?.statistics?.find(h => h.name === s.name)?.displayValue ?? '—'}</strong></div>) : <div className="tv-empty">Team statistics will appear when the feed provides them.</div>}</div>}
+        <div className="tv-sidebar-footer"><small>{updated ? `Updated ${updated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · refreshes every 20s` : 'Connecting to game feed'}</small><button className="tv-open-center" onClick={() => onOpenGame(game)}>Open Full Game Center & Play-by-Play <ArrowUpRight size={18} /></button></div>
+      </aside>
+    </div>
+  </>;
+}
+
+export default function TVMode({ games, onClose, selectedDate, totalLiveCount, onOpenGame, isGameCenterOpen }) {
+  const ordered = useMemo(() => [...games].sort((a, b) => Number(b.status.isLive) - Number(a.status.isLive)), [games]);
+  const [selectedGameId, setSelectedGameId] = useState(null);
+  const [paused, setPaused] = useState(false);
+  const [interacting, setInteracting] = useState(false);
+  const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement));
+  const [fullscreenError, setFullscreenError] = useState('');
+  const rootRef = useRef(null);
+  const openRef = useRef(null);
+  const index = Math.max(0, ordered.findIndex(g => g.id === selectedGameId));
+  const game = ordered[index];
+  const held = paused || interacting || isGameCenterOpen;
+  const navigate = direction => { if (ordered.length) setSelectedGameId(ordered[(index + direction + ordered.length) % ordered.length].id); };
+  const gameIds = ordered.map(g => g.id).join(',');
+  useEffect(() => {
+    const ids = gameIds ? gameIds.split(',') : [];
+    if (held || ids.length < 2) return;
+    const timer = setTimeout(() => setSelectedGameId(ids[(index + 1) % ids.length]), 30000);
+    return () => clearTimeout(timer);
+  }, [held, index, gameIds]);
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    rootRef.current?.focus();
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  useEffect(() => {
+    const changed = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  useEffect(() => { if (!isGameCenterOpen && openRef.current) { openRef.current.focus(); openRef.current = null; } }, [isGameCenterOpen]);
+  const openGame = g => { openRef.current = document.activeElement; onOpenGame(g); };
+  useEffect(() => {
+    const onKey = e => {
+      if (isGameCenterOpen || e.defaultPrevented) return;
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      if (e.key === 'Tab') {
+        const items = [...rootRef.current.querySelectorAll('button:not(:disabled)')].filter(el => el.getClientRects().length);
+        const first = items[0], last = items.at(-1);
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === rootRef.current)) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+      if (e.target.closest('button, input, select, textarea, a, [role="tab"]')) return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); navigate(1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); navigate(-1); }
+      if (e.key === ' ') { e.preventDefault(); setPaused(p => !p); }
+      if (e.key === 'Enter' && game) { e.preventDefault(); openGame(game); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+      setFullscreenError('');
+    } catch { setFullscreenError('Fullscreen is unavailable in this browser. TV mode still works in this window.'); }
+  }
+  return <div className="tv-mode" ref={rootRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="TV mode" inert={isGameCenterOpen ? true : undefined}>
+    <header className="tv-header"><div className="tv-brand"><Tv size={25} /><strong>ARENA<span>VISION</span></strong><span className="tv-edition">GAME ROOM</span></div><div className="tv-header-meta"><span>{selectedDate}</span><span className="tv-live-count">{totalLiveCount} LIVE</span></div><div className="tv-header-controls"><button onClick={() => setPaused(!paused)} aria-label={paused ? 'Resume auto-cycle' : 'Pause auto-cycle'}>{paused ? <Play size={18} /> : <Pause size={18} />}<span>{held ? 'Game held' : 'Auto-cycle / 30s'}</span></button><button onClick={toggleFullscreen} aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>{fullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}</button><button onClick={onClose} aria-label="Exit TV mode"><X size={22} /></button></div></header>
+    {fullscreenError && <div role="status">{fullscreenError}</div>}
+    <main className="tv-main">{game ? <GameBroadcast key={`${game.sport}-${game.league}-${game.id}`} game={game} onOpenGame={openGame} onInteracting={setInteracting} modalOpen={isGameCenterOpen} /> : <div className="tv-empty"><h2>No games on this date</h2><p>Exit TV mode and choose another date or league.</p></div>}</main>
+    <footer className="tv-footer"><div className="tv-navigation"><button disabled={!ordered.length} onClick={() => navigate(-1)} aria-label="Previous game"><ChevronLeft /></button><span>{ordered.length ? index + 1 : 0} / {ordered.length}</span><button disabled={!ordered.length} onClick={() => navigate(1)} aria-label="Next game"><ChevronRight /></button></div><div className="tv-game-strip" aria-label="Choose a game">{ordered.map(g => <button key={`${g.league}-${g.id}`} className={g.id === game?.id ? 'active' : ''} aria-pressed={g.id === game?.id} onClick={() => setSelectedGameId(g.id)}><small>{g.status.isLive ? 'LIVE' : g.status.isFinal ? 'FINAL' : g.league.toUpperCase()}</small><span>{g.awayTeam.abbreviation} <b>{g.status.isScheduled ? 'vs' : g.awayTeam.score}</b> {g.homeTeam.abbreviation} <b>{g.status.isScheduled ? '' : g.homeTeam.score}</b></span></button>)}</div><small className="tv-key-hint">← → games · Space hold · Esc exit</small></footer>
+  </div>;
 }
