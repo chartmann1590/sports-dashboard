@@ -1,4 +1,5 @@
 import { cache } from './cache.js';
+import { normalizeTVPlays } from './tvPlays.js';
 
 export const LEAGUES_CONFIG = [
   { id: 'nfl', sport: 'football', league: 'nfl', name: 'NFL', category: 'Football', icon: '🏈' },
@@ -857,9 +858,10 @@ export async function getGameSummary(sport, league, eventId) {
 
     const result = {
       header: data.header,
+      visualPlays: normalizeTVPlays(data),
       boxscore,
       plays,
-      isDrives: Boolean(data.drives),
+      isDrives: plays.some(p => Array.isArray(p.plays)),
       scoringPlays,
       winprobability,
       projection,

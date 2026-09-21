@@ -578,7 +578,9 @@ export default function App() {
       {/* Deep Game Details Modal */}
       {selectedGame && (
         <GameDetailsModal
+          key={selectedGame.id}
           game={selectedGame}
+          initialTab={isTVMode ? 'plays' : 'scoring'}
           onClose={() => setSelectedGame(null)}
         />
       )}
@@ -590,6 +592,7 @@ export default function App() {
           onClose={() => setIsTVMode(false)}
           selectedDate={selectedDate}
           totalLiveCount={liveCountByLeague['all'] || 0}
+          isGameCenterOpen={Boolean(selectedGame)}
           onOpenGame={(g) => setSelectedGame(g)}
         />
       )}

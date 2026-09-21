@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Tv, 
@@ -69,16 +69,20 @@ function getWeatherIcon(weather) {
   return <CloudSun className="w-5 h-5 text-amber-400" />;
 }
 
-export default function GameDetailsModal({ game, onClose }) {
+export default function GameDetailsModal({ game, onClose, initialTab = 'scoring' }) {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('scoring'); // 'scoring', 'plays', 'boxscore', 'winprob', 'gameinfo', 'recap'
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [subscribed, setSubscribed] = useState(isGameSubscribed(game.id));
   const [alertPrefs, setAlertPrefs] = useState(getGameAlertPreferences(game.id));
   // Keys the user explicitly customized for this game (persisted as overrides
   // so untweaked triggers keep following the global preferences)
   const [prefOverrides, setPrefOverrides] = useState({});
   const [showAlertMenu, setShowAlertMenu] = useState(false);
+  const dialogRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const [fetchError, setFetchError] = useState('');
 
   const handleToggleSub = async () => {
     playClickSound();
@@ -111,9 +115,13 @@ export default function GameDetailsModal({ game, onClose }) {
     try {
       setLoading(true);
       const res = await fetch(`/api/game/${game.sport}/${game.league}/${game.id}`);
+      if (!res.ok) throw new Error('Game feed unavailable');
       const data = await res.json();
+      if (data.error) throw new Error(data.error);
       setDetails(data);
+      setFetchError('');
     } catch (err) {
+      setFetchError('Game details could not be loaded. Try refreshing.');
       console.error('Error fetching game details:', err);
     } finally {
       setLoading(false);
@@ -126,12 +134,20 @@ export default function GameDetailsModal({ game, onClose }) {
 
   // Close on Escape key
   useEffect(() => {
+    const previousFocus = document.activeElement;
+    dialogRef.current?.focus();
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') { e.preventDefault(); onCloseRef.current(); }
+      if (e.key === 'Tab') {
+        const items = [...dialogRef.current.querySelectorAll('button:not(:disabled), a[href], input, select, [tabindex="0"]')].filter(el => el.getClientRects().length);
+        const first = items[0], last = items.at(-1);
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+    return () => { window.removeEventListener('keydown', handleKeyDown); previousFocus?.focus(); };
+  }, []);
 
   const {
     homeTeam,
@@ -170,7 +186,7 @@ export default function GameDetailsModal({ game, onClose }) {
   const homeBoxTeam = boxTeams.find(t => t.team.id === homeTeam.id || t.team.name === homeTeam.displayName) || boxTeams[1];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
+    <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Full game center" className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
       <div 
         className="relative w-full max-w-5xl bg-[#0b0f19] border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
@@ -433,6 +449,7 @@ export default function GameDetailsModal({ game, onClose }) {
 
         {/* Modal Body Content */}
         <div className="p-6 overflow-y-auto grow space-y-6">
+          {fetchError && <p role="alert" className="text-amber-300">{fetchError}</p>}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400 space-y-3">
               <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
