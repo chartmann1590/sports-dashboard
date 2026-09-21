@@ -1,0 +1,68 @@
+name: prod-build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Verify AdMob prod secrets are configured
+        run: |
+          missing=""
+          for s in ADMOB_APP_ID ADMOB_BANNER_AD_ID ADMOB_INTERSTITIAL_AD_ID; do
+            case "$s" in
+              ADMOB_APP_ID) v="${{ secrets.ADMOB_APP_ID }}" ;;
+              ADMOB_BANNER_AD_ID) v="${{ secrets.ADMOB_BANNER_AD_ID }}" ;;
+              ADMOB_INTERSTITIAL_AD_ID) v="${{ secrets.ADMOB_INTERSTITIAL_AD_ID }}" ;;
+            esac
+            if [ -z "$v" ]; then missing="$missing $s"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::AdMob secrets missing:$missing — building with ads disabled."
+          else
+            echo "All AdMob prod secrets are configured."
+          fi
+
+      - name: Guard against hardcoded AdMob IDs
+        run: |
+          # Fail if a real ca-app-pub / ca-pub ID was ever committed to tracked files.
+          if git grep -nE 'ca-(app-)?pub-[0-9]{4,}' -- ':!package-lock.json' ':!client/package-lock.json' ':!*.png' | grep -v '.env.example'; then
+            echo "::error::Hardcoded AdMob/AdSense ID found in tracked files. Use env/secrets instead."
+            exit 1
+          fi
+          echo "No hardcoded ad IDs in tracked files."
+
+      - name: Install server deps
+        run: npm ci
+
+      - name: Install client deps
+        run: npm --prefix client ci
+
+      - name: Build client (prod, ads enabled from secrets)
+        run: npm --prefix client run build
+        env:
+          VITE_ADS_ENABLED: "true"
+          VITE_ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          VITE_ADMOB_BANNER_AD_ID: ${{ secrets.ADMOB_BANNER_AD_ID }}
+          VITE_ADMOB_INTERSTITIAL_AD_ID: ${{ secrets.ADMOB_INTERSTITIAL_AD_ID }}
+
+      - name: Verify ads.txt generated
+        run: |
+          if [ -f client/public/ads.txt ]; then echo "--- ads.txt ---"; sed 's/pub-[0-9]*/pub-****/' client/public/ads.txt; fi
+          if [ -f client/dist/ads.txt ]; then echo "--- dist/ads.txt ---"; sed 's/pub-[0-9]*/pub-****/' client/dist/ads.txt; fi
+          echo "Client dist:"; ls client/dist | head -20

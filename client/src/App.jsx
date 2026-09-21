@@ -8,6 +8,9 @@ import GameDetailsModal from './components/GameDetailsModal';
 import TVMode from './components/TVMode';
 import NewsDrawer from './components/NewsDrawer';
 import NotificationModal from './components/NotificationModal';
+import BannerAd from './components/ads/BannerAd';
+import InterstitialAd from './components/ads/InterstitialAd';
+import { isAdsEnabled } from './utils/ads';
 import { getTodayString } from './utils/date';
 import { playScoreSound } from './utils/audio';
 import { 
@@ -478,6 +481,11 @@ export default function App() {
         onSelectGame={(g) => setSelectedGame(g)}
       />
 
+      {/* AdMob in-feed banner — renders only in prod when IDs are provided via env */}
+      <div className="max-w-[1920px] mx-auto w-full px-4 sm:px-6 pt-4">
+        <BannerAd placement="in-feed" />
+      </div>
+
       {/* Main Content Area */}
       <main className="max-w-[1920px] mx-auto w-full p-4 sm:p-6 grow flex flex-col space-y-6">
         
@@ -574,6 +582,11 @@ export default function App() {
       <footer className="border-t border-slate-800/80 bg-[#0b0f19] px-6 py-4 text-center text-xs text-slate-500">
         <p>ArenaPulse Live Dashboard • Powered by free, unauthenticated sports data feeds • Auto-updates live</p>
       </footer>
+
+      {/* AdMob sticky footer banner + timed interstitial — prod only, env-driven */}
+      {isAdsEnabled() && <div aria-hidden className="h-[58px]" />}
+      <BannerAd placement="sticky-footer" />
+      <InterstitialAd suppressed={isTVMode} />
 
       {/* Deep Game Details Modal */}
       {selectedGame && (

@@ -14,6 +14,12 @@ yarn-error.log*
 # Environment & OS files
 .env
 .env.local
+client/.env.local
+local.properties
+client/local.properties
+# Generated AdSense sellers files (built from env/secrets at build time)
+client/public/ads.txt
+client/public/app-ads.txt
 .DS_Store
 Thumbs.db
 .serena/

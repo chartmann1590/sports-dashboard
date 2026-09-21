@@ -16,6 +16,11 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <!-- AdMob/AdSense: script is injected at runtime from env IDs (see src/utils/ads.js).
+         Prod IDs come from GitHub Secrets; local dev uses client/.env.local.
+         No ad IDs are hardcoded here. -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
+    <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossorigin />
   </head>
   <body class="bg-[#07090e] text-slate-100 antialiased overflow-x-hidden">
     <div id="root"></div>

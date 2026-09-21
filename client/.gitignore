@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.env.local
+local.properties
+public/ads.txt
+public/app-ads.txt
 
 # Editor directories and files
 .vscode/*

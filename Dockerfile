@@ -2,10 +2,22 @@
 FROM node:22-alpine AS client-builder
 WORKDIR /app/client
 
+# AdMob IDs for prod (pass via --build-arg, sourced from GitHub Secrets in CI).
+# Never hardcode real IDs here — Vite embeds non-empty VITE_* values at build time.
+ARG VITE_ADS_ENABLED=true
+ARG VITE_ADMOB_APP_ID=""
+ARG VITE_ADMOB_BANNER_AD_ID=""
+ARG VITE_ADMOB_INTERSTITIAL_AD_ID=""
+ENV VITE_ADS_ENABLED=$VITE_ADS_ENABLED
+ENV VITE_ADMOB_APP_ID=$VITE_ADMOB_APP_ID
+ENV VITE_ADMOB_BANNER_AD_ID=$VITE_ADMOB_BANNER_AD_ID
+ENV VITE_ADMOB_INTERSTITIAL_AD_ID=$VITE_ADMOB_INTERSTITIAL_AD_ID
+
 COPY client/package*.json ./
 RUN npm ci
 
 COPY client/ ./
+COPY scripts/ ../scripts/
 RUN npm run build
 
 # Stage 2: Production Server
