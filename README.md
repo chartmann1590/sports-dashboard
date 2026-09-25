@@ -23,6 +23,11 @@ Designed for desktop, mobile, and **Big-Screen Living Room TV displays** with an
   - Optimized for 4K / 1080p living room TVs with high-contrast cinema scoreboard cards.
   - Auto-cycling spotlight on live & close games.
   - Giant digital stadium clock and date.
+  - **🎙️ Play-by-Play Announcer** (opt-in, free, no API keys): toggle "Announcer" in TV mode
+    to hear each new play read aloud like a sports broadcaster — big moments get more
+    excitement, faster pace, and higher pitch. Uses the browser's built-in voice by default,
+    or the optional on-device Kokoro TTS sidecar for a more human-like voice
+    (`docker compose --profile tts up --build -d`).
   - Keyboard / Remote shortcuts:
     - `◀` / `▶` Left/Right Arrow: Manually cycle games.
     - `Spacebar`: Pause / Resume auto-cycle.
@@ -63,6 +68,33 @@ To stop the container:
 ```powershell
 docker compose down
 ```
+
+### 🎙️ Optional on-device TTS for the TV announcer
+
+The TV mode **Announcer** works out of the box with your browser's free built-in
+speech voice — nothing to install, no keys, no accounts. For a more natural,
+human-like broadcaster voice, you can run the optional on-device TTS sidecar:
+
+```powershell
+docker compose --profile tts up --build -d
+```
+
+What you get:
+
+- **Kokoro 82M** text-to-speech, CPU-only, running entirely on your machine
+  (~300–500 MB RAM in practice, capped at 1 GB / 2 CPUs so it stays light).
+- No API keys, no paid services, no cloud calls — the model downloads once
+  (~180 MB) into a named Docker volume on first start.
+- The dashboard backend proxies it (`/api/tts`), so the browser never talks to
+  the sidecar directly; without the profile enabled, the announcer silently
+  falls back to the browser voice.
+
+Environment variables (set in `docker-compose.yml`):
+
+| Variable    | Default                | Purpose                                      |
+|-------------|------------------------|----------------------------------------------|
+| `TTS_URL`   | `http://kokoro-tts:8000` | Sidecar base URL (inert without the profile) |
+| `TTS_VOICE` | `am_michael`           | Default Kokoro voice (`af_heart`, `af_nicole`, `am_adam`, `am_michael`, `bf_emma`, `bm_george`) |
 
 ---
 

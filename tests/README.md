@@ -1,10 +1,17 @@
 # TV mode checks
 
-Run the normalization and field-model tests:
+Run the normalization, field-model, commentary, and TTS proxy tests:
 
 ```powershell
-node --test tests/tv-plays.test.js
+node --test tests/tv-plays.test.js tests/commentary.test.js tests/tts-proxy.test.js
 ```
+
+- `tests/commentary.test.js` covers the play-by-play announcer script builder
+  (`client/src/utils/commentary.js`): excitement classification, speech cleanup,
+  rotation determinism, and team-name resolution.
+- `tests/tts-proxy.test.js` boots the real Express server as a child process and
+  exercises `GET /api/tts/health` and `POST /api/tts` both without a sidecar
+  (expects 503/400s) and against a stub Kokoro sidecar (expects WAV audio back).
 
 Run deterministic browser checks against the Docker app (requires Python Playwright and Chromium):
 

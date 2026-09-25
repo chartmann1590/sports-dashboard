@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Tv, X, Play, Pause, ChevronLeft, ChevronRight, RotateCcw, Radio, Maximize2, Minimize2, ArrowUpRight } from 'lucide-react';
+import { Tv, X, Play, Pause, ChevronLeft, ChevronRight, RotateCcw, Radio, Maximize2, Minimize2, ArrowUpRight, Mic } from 'lucide-react';
 import SportField from './SportField';
+import { Announcer } from '../utils/announcer.js';
+import { buildCommentary } from '../utils/commentary.js';
 import './TVMode.css';
 
 function Team({ team, home, scheduled }) {
@@ -22,6 +24,10 @@ function GameBroadcast({ game, onOpenGame, onInteracting, modalOpen }) {
   const [flat, setFlat] = useState(false);
   const [panel, setPanel] = useState('plays');
   const [retry, setRetry] = useState(0);
+  const [announcerOn, setAnnouncerOn] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const announcerRef = useRef(null);
+  const lastAnnouncedRef = useRef(null);
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -63,6 +69,47 @@ function GameBroadcast({ game, onOpenGame, onInteracting, modalOpen }) {
     return () => clearTimeout(timer);
   }, [replaying, selectedIndex, plays, modalOpen]);
 
+  // Play-by-play announcer (opt-in, user gesture unlocks audio).
+  const announcePlay = play => {
+    const announcer = announcerRef.current;
+    if (!announcer || !play) return;
+    const { script, excitement } = buildCommentary(play, game);
+    if (script) announcer.speak({ text: script, excitement });
+  };
+  const toggleAnnouncer = async () => {
+    if (announcerOn) {
+      announcerRef.current?.disable();
+      setAnnouncerOn(false);
+      setSpeaking(false);
+      lastAnnouncedRef.current = null;
+      return;
+    }
+    if (!announcerRef.current) {
+      announcerRef.current = new Announcer({ mode: 'live', onState: state => setSpeaking(state === 'speaking') });
+    }
+    await announcerRef.current.enable();
+    setAnnouncerOn(true);
+  };
+  // Keep provider mode in sync with replay state (replay keeps a tiny queue).
+  useEffect(() => { if (announcerRef.current) announcerRef.current.mode = replaying ? 'replay' : 'live'; }, [replaying]);
+  // Announce new plays as they arrive while following live.
+  useEffect(() => {
+    if (!announcerOn || modalOpen || document.hidden || !following) return;
+    const latest = plays.at(-1);
+    if (!latest || latest.id === lastAnnouncedRef.current) return;
+    lastAnnouncedRef.current = latest.id;
+    announcePlay(latest);
+  }, [announcerOn, plays.length, following, modalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Announce each play stepped through during a replay.
+  useEffect(() => {
+    if (!announcerOn || !replaying || modalOpen || document.hidden) return;
+    if (!selectedPlay || selectedPlay.id === lastAnnouncedRef.current) return;
+    lastAnnouncedRef.current = selectedPlay.id;
+    announcePlay(selectedPlay);
+  }, [announcerOn, replaying, selectedPlay?.id, modalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Disable the announcer when the game changes or the broadcast unmounts.
+  useEffect(() => () => { announcerRef.current?.disable(); }, [game.id]);
+
   const selectPlay = index => { if (plays[index]) { setSelectedId(plays[index].id); setReplaying(false); } };
   const stats = details?.boxscore?.teams || [];
   const awayStats = stats.find(t => String(t.team.id) === String(game.awayTeam.id));
@@ -78,7 +125,7 @@ function GameBroadcast({ game, onOpenGame, onInteracting, modalOpen }) {
     </div>
     <div className="tv-broadcast-grid">
       <section className="tv-arena" aria-label="Game visualization">
-        <div className="tv-section-heading"><div><span className={`tv-status-dot ${game.status.isLive && following ? 'is-live' : ''}`} />{following ? (game.status.isLive ? 'FOLLOWING LIVE' : game.status.isFinal ? 'FINAL GAME / LAST PLAY' : 'PREGAME') : 'PLAY REPLAY'}</div><button onClick={() => setFlat(!flat)} aria-pressed={flat}>{flat ? '3D field' : 'Overhead view'}</button></div>
+        <div className="tv-section-heading"><div><span className={`tv-status-dot ${game.status.isLive && following ? 'is-live' : ''}`} />{following ? (game.status.isLive ? 'FOLLOWING LIVE' : game.status.isFinal ? 'FINAL GAME / LAST PLAY' : 'PREGAME') : 'PLAY REPLAY'}</div><div className="tv-section-actions"><button className={`tv-announcer ${announcerOn ? 'active' : ''} ${speaking ? 'speaking' : ''}`} onClick={toggleAnnouncer} aria-pressed={announcerOn} title={announcerOn ? 'Turn off the play-by-play announcer' : 'Turn on the play-by-play announcer (free browser voice)'}><Mic size={16} />Announcer{speaking && <span className="tv-announcer-dot" aria-hidden="true" />}</button><button onClick={() => setFlat(!flat)} aria-pressed={flat}>{flat ? '3D field' : 'Overhead view'}</button></div></div>
         <SportField game={game} play={selectedPlay} replayKey={replayKey} flat={flat} animate={!modalOpen} />
         <div className="tv-play-caption" aria-live="polite"><div><span>{selectedPlay?.period} {selectedPlay?.clock}</span>{selectedPlay?.scoringPlay && <b>SCORING PLAY</b>}{!following && <b>REPLAY</b>}</div><p>{selectedPlay?.text || (loading ? 'Loading play-by-play…' : game.status.isScheduled ? 'The matchup is set. Live plays will appear here when coverage begins.' : 'This feed has no play-by-play yet. Team stats and the full game center may still be available.')}</p>{selectedPlay?.awayScore != null && selectedPlay?.homeScore != null && <small>Score after this play: {game.awayTeam.abbreviation} {selectedPlay.awayScore} — {game.homeTeam.abbreviation} {selectedPlay.homeScore}</small>}</div>
         <div className="tv-replay-controls">
