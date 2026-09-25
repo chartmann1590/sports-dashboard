@@ -6,9 +6,10 @@ MODEL_BASE="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-
 
 mkdir -p /data
 
-if [ ! -f /data/kokoro-v0_19.fp16.onnx ]; then
-  echo "Downloading kokoro-v0_19.fp16.onnx ..."
-  curl -fSL -o /data/kokoro-v0_19.fp16.onnx "$MODEL_BASE/kokoro-v0_19.fp16.onnx"
+if [ ! -f /data/kokoro-v1.0.fp16.onnx ]; then
+  echo "Downloading kokoro-v1.0.fp16.onnx ..."
+  curl -fSL -o /data/kokoro-v1.0.fp16.onnx "$MODEL_BASE/kokoro-v1.0.fp16.onnx" \
+    || { echo "ERROR: model download failed" >&2; exit 1; }
 fi
 
 if [ ! -f /data/voices-v1.0.bin ]; then

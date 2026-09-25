@@ -1,7 +1,7 @@
 """Kokoro on-device TTS sidecar.
 
 CPU-only, no API keys, OpenAI-compatible /v1/audio endpoints.
-The model weights (~330MB) are downloaded once by entrypoint.sh into /data.
+The model weights (~180MB) are downloaded once by entrypoint.sh into /data.
 """
 
 import io
@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-MODEL_PATH = '/data/kokoro-v0_19.fp16.onnx'
+MODEL_PATH = '/data/kokoro-v1.0.fp16.onnx'
 VOICES_PATH = '/data/voices-v1.0.bin'
 
 VOICES = [

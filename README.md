@@ -84,7 +84,7 @@ What you get:
 - **Kokoro 82M** text-to-speech, CPU-only, running entirely on your machine
   (~300–500 MB RAM in practice, capped at 1 GB / 2 CPUs so it stays light).
 - No API keys, no paid services, no cloud calls — the model downloads once
-  (~330 MB) into a named Docker volume on first start.
+  (~180 MB) into a named Docker volume on first start.
 - The dashboard backend proxies it (`/api/tts`), so the browser never talks to
   the sidecar directly; without the profile enabled, the announcer silently
   falls back to the browser voice.
