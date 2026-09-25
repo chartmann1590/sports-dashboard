@@ -10,8 +10,39 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      # TTS sidecar connection for the TV mode play-by-play announcer.
+      # Inert unless the "tts" compose profile is enabled (the sidecar is opt-in).
+      - TTS_URL=http://kokoro-tts:8000
+      - TTS_VOICE=am_michael
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/api/health"]
       interval: 15s
       timeout: 5s
       retries: 3
+
+  # Optional on-device TTS (Kokoro 82M, CPU-only, no API keys).
+  # Start with: docker compose --profile tts up --build -d
+  kokoro-tts:
+    build:
+      context: ./tts
+    container_name: sports-dashboard-tts
+    profiles: ["tts"]
+    restart: unless-stopped
+    volumes:
+      - kokoro-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2.0"
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  kokoro-data: {}

@@ -102,6 +102,62 @@ app.get('/api/news', async (req, res) => {
   }
 });
 
+// TTS proxy for the TV mode play-by-play announcer.
+// The Kokoro sidecar is opt-in (docker compose profile "tts"); without it the
+// frontend falls back to the browser's built-in Web Speech API. No API keys.
+const TTS_URL = process.env.TTS_URL || '';
+const TTS_VOICE = process.env.TTS_VOICE || 'am_michael';
+
+async function fetchWithTimeout(url, { timeoutMs = 3000, ...init } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+app.get('/api/tts/health', async (req, res) => {
+  if (!TTS_URL) return res.status(503).json({ available: false, reason: 'TTS sidecar not configured' });
+  try {
+    const upstream = await fetchWithTimeout(`${TTS_URL}/v1/audio/voices`, { timeoutMs: 3000 });
+    if (upstream.ok) return res.json({ available: true });
+    return res.status(503).json({ available: false });
+  } catch {
+    return res.status(503).json({ available: false });
+  }
+});
+
+app.post('/api/tts', async (req, res) => {
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (!text) return res.status(400).json({ error: 'text must be a non-empty string' });
+  if (text.length > 1000) return res.status(400).json({ error: 'text too long (max 1000 chars)' });
+  if (!TTS_URL) return res.status(503).json({ available: false, reason: 'TTS sidecar not configured' });
+  const speed = Number(req.body.speed);
+  try {
+    const upstream = await fetchWithTimeout(`${TTS_URL}/v1/audio/speech`, {
+      timeoutMs: 30000,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'kokoro',
+        input: text,
+        voice: req.body.voice || TTS_VOICE,
+        response_format: 'wav',
+        speed: Number.isFinite(speed) && speed > 0 ? speed : 1.0,
+      }),
+    });
+    if (!upstream.ok) return res.status(502).json({ error: 'TTS synthesis failed' });
+    const audio = Buffer.from(await upstream.arrayBuffer());
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/wav');
+    res.setHeader('Content-Length', audio.length);
+    res.send(audio);
+  } catch {
+    return res.status(502).json({ error: 'TTS synthesis failed' });
+  }
+});
+
 // Serve frontend in production
 const distPath = path.join(__dirname, '..', 'client', 'dist');
 
