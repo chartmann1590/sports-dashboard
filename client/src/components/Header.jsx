@@ -14,7 +14,8 @@ import {
   Flame,
   Radio,
   Bell,
-  Download
+  Download,
+  Code2
 } from 'lucide-react';
 import { formatFriendlyDate, offsetDateString, getTodayString } from '../utils/date';
 import { playClickSound } from '../utils/audio';
@@ -306,6 +307,19 @@ export default function Header({
             <Tv className="w-4 h-4" />
             <span className="hidden sm:inline">TV MODE</span>
           </button>
+
+          {/* Interactive REST API Documentation */}
+          <a
+            href="/api/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={playClickSound}
+            className="px-2.5 py-1.5 rounded-xl border bg-slate-900/90 border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/40 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+            title="Interactive REST API Documentation (Swagger UI & OpenAPI 3.0)"
+          >
+            <Code2 className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">API</span>
+          </a>
 
           {/* Browser Fullscreen Toggle */}
           <button
