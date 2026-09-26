@@ -11,6 +11,7 @@ import {
   getNews,
   resolveSportAndLeague
 } from './espnService.js';
+import { setupApiDocs } from './docs.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,17 +19,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
 app.use(compression());
 app.use(express.json());
 
 // Request logger for API calls
 app.use((req, res, next) => {
-  if (req.url.startsWith('/api/')) {
+  if (req.url.startsWith('/api') || req.url.startsWith('/docs')) {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   }
   next();
 });
+
+// Setup Interactive API Documentation & OpenAPI Spec
+setupApiDocs(app);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -171,9 +179,19 @@ app.get('/sw.js', (req, res) => {
 
 app.use(express.static(distPath));
 
+// API 404 handler for undefined API routes
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    error: 'API endpoint not found',
+    method: req.method,
+    path: req.originalUrl || req.url,
+    documentation: '/api/docs'
+  });
+});
+
 // SPA Fallback for client routes
 app.use((req, res, next) => {
-  if (req.method === 'GET' && !req.url.startsWith('/api/')) {
+  if (req.method === 'GET' && !req.url.startsWith('/api') && !req.url.startsWith('/docs')) {
     return res.sendFile(path.join(distPath, 'index.html'), (err) => {
       if (err) {
         res.status(200).send('Sports Dashboard Server Running.');
@@ -185,7 +203,9 @@ app.use((req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`=========================================`);
-  console.log(`🏟️ SportsPulse Dashboard Server Started!`);
+  console.log(`🏟️ ArenaPulse Sports Dashboard Server Started!`);
   console.log(`📡 Listening on: http://localhost:${PORT}`);
+  console.log(`📖 API Docs:    http://localhost:${PORT}/api/docs`);
+  console.log(`📄 OpenAPI Spec: http://localhost:${PORT}/api/openapi.json`);
   console.log(`=========================================`);
 });

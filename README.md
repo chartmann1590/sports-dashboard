@@ -53,6 +53,51 @@ Designed for desktop, mobile, and **Big-Screen Living Room TV displays** with an
 
 ---
 
+## 🔌 Public REST API & Complete Documentation
+
+ArenaPulse exposes a clean, unauthenticated REST API accessible directly from the Docker container, host machine, or shared Docker networks. **No API keys or tokens required.**
+
+- 📖 **Interactive Swagger UI**: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
+- 📄 **OpenAPI 3.0.3 Specification**: [http://localhost:3000/api/openapi.json](http://localhost:3000/api/openapi.json)
+- 📑 **Comprehensive Guide**: See [`API.md`](./API.md) for complete parameter definitions, response schemas, and client examples.
+
+### Core Endpoints Quick Reference
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/health` | `GET` | Service status, timestamp, and container uptime |
+| `/api/leagues` | `GET` | All 14 supported leagues across Football, Baseball, Basketball, Hockey, Soccer |
+| `/api/scores/all` | `GET` | Aggregated live, upcoming, and completed games across all leagues (`?date=YYYYMMDD`) |
+| `/api/scores` | `GET` | Single league scoreboard (`?league=nfl&date=YYYYMMDD`) |
+| `/api/game/:sport/:league/:id` | `GET` | Deep box score, play-by-play, scoring timeline, odds, weather, and recap |
+| `/api/game/:league/:id` | `GET` | Deep game summary with auto-resolved sport |
+| `/api/news` | `GET` | Top league sports headlines, articles, and photos (`?league=nfl`) |
+| `/api/tts/health` | `GET` | Probe status of optional on-device Kokoro TTS announcer sidecar |
+| `/api/tts` | `POST` | Synthesize announcer speech into WAV audio (`{ text, speed, voice }`) |
+| `/api/openapi.json` | `GET` | Raw OpenAPI 3.0.3 specification JSON |
+| `/api` | `GET` | Machine-readable API directory (redirects to `/api/docs` in browser) |
+
+### Quick cURL Examples
+
+```bash
+# Health check
+curl -s http://localhost:3000/api/health
+
+# Aggregated live & upcoming scores across all leagues
+curl -s "http://localhost:3000/api/scores/all"
+
+# NFL scoreboard for a specific date
+curl -s "http://localhost:3000/api/scores?league=nfl&date=20260926"
+
+# Deep game details (box score, play-by-play, betting odds)
+curl -s "http://localhost:3000/api/game/nfl/401547432"
+
+# Interactive documentation
+curl -s http://localhost:3000/api/openapi.json
+```
+
+---
+
 ## 🐳 Running with Docker (Recommended)
 
 Start the dashboard in Docker with a single command:
