@@ -101,6 +101,9 @@ test('API Documentation & OpenAPI routes', async () => {
     assert.ok(spec.paths['/api/game/{sport}/{league}/{id}'], 'Should include deep game path');
     assert.ok(spec.paths['/api/tts'], 'Should include tts path');
     assert.equal(spec.components.schemas.GameEvent.properties.broadcasts.type, 'array');
+    assert.equal(spec.components.schemas.GameSummaryResponse.properties.visualPlays.type, 'array');
+    assert.equal(spec.components.schemas.GameSummaryResponse.properties.winprobability.type, 'array');
+    assert.equal(spec.components.schemas.GameSummaryResponse.properties.gameInfo.type, 'object');
 
     // 3. /api/swagger.json alias works
     const swagger = await request(app.port, 'GET', '/api/swagger.json');

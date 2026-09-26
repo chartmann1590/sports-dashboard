@@ -732,14 +732,17 @@ ArenaPulse provides high-performance, real-time sports data feeds aggregated fro
       GameSummaryResponse: {
         type: 'object',
         properties: {
-          venue: { type: 'object' },
-          weather: { type: 'object' },
-          officials: { type: 'array', items: { type: 'object' } },
-          attendance: { type: 'integer', example: 71008 },
-          broadcasts: { type: 'array', items: { type: 'object' } },
-          odds: { type: 'object' },
-          predictor: { type: 'object' },
-          winProbability: {
+          header: { type: 'object' },
+          visualPlays: {
+            type: 'array',
+            items: { type: 'object' },
+            description: 'Normalized animation-ready TV plays'
+          },
+          boxscore: { type: 'object', description: 'Side-by-side team statistics and player tables' },
+          plays: { type: 'array', items: { type: 'object' }, description: 'Full chronological play-by-play or drives' },
+          isDrives: { type: 'boolean', description: 'Whether plays are grouped by drives' },
+          scoringPlays: { type: 'array', items: { type: 'object' }, description: 'Chronological scoring events' },
+          winprobability: {
             type: 'array',
             items: {
               type: 'object',
@@ -748,17 +751,78 @@ ArenaPulse provides high-performance, real-time sports data feeds aggregated fro
                 playId: { type: 'string' },
                 secondsLeft: { type: 'integer' }
               }
+            },
+            description: 'Minute-by-minute win probability progression'
+          },
+          projection: { type: 'object', description: 'Game projections and matchup predictions' },
+          article: { type: 'object', description: 'Post-game editorial recap article, headline, and photos' },
+          news: { type: 'array', items: { type: 'object' } },
+          gameInfo: {
+            type: 'object',
+            properties: {
+              venue: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'M&T Bank Stadium' },
+                  city: { type: 'string', example: 'Baltimore' },
+                  state: { type: 'string', example: 'MD' },
+                  country: { type: 'string', example: 'USA' },
+                  capacity: { type: 'integer', example: 71008 },
+                  indoor: { type: 'boolean', example: false }
+                }
+              },
+              attendance: { type: 'integer', example: 71008 },
+              weather: {
+                type: 'object',
+                properties: {
+                  temperature: { type: 'number', example: 68 },
+                  condition: { type: 'string', example: 'Partly Cloudy' },
+                  conditionId: { type: 'string', example: '3' },
+                  wind: { type: 'string', example: '8 mph' },
+                  precipitation: { type: 'string', example: '10%' },
+                  indoor: { type: 'boolean', example: false },
+                  displayValue: { type: 'string', example: '68°F • Partly Cloudy' }
+                }
+              },
+              officials: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', example: 'Carl Cheffers' },
+                    position: { type: 'string', example: 'Referee' }
+                  }
+                }
+              }
             }
           },
-          scoringPlays: { type: 'array', items: { type: 'object' } },
-          boxscore: { type: 'object', description: 'Side-by-side team statistics and player tables' },
-          plays: { type: 'array', items: { type: 'object' }, description: 'Full chronological play-by-play' },
-          drives: { type: 'object', description: 'Drive-by-drive breakdown' },
-          header: { type: 'object' },
-          leaders: { type: 'array', items: { type: 'object' } },
-          recap: { type: 'object', description: 'Post-game editorial recap story and headline' },
-          news: { type: 'array', items: { type: 'object' } },
-          tvPlays: { type: 'array', items: { type: 'object' }, description: 'Normalized animation-ready TV plays' }
+          odds: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                provider: { type: 'string', example: 'ESPN BET' },
+                details: { type: 'string', example: 'BAL -3.0' },
+                overUnder: { type: 'number', example: 47.5 },
+                spread: { type: 'number', example: -3.0 },
+                awayMoneyLine: { type: 'integer', example: 140 },
+                homeMoneyLine: { type: 'integer', example: -165 },
+                consensus: { type: 'object' }
+              }
+            }
+          },
+          seasonSeries: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                description: { type: 'string' },
+                summary: { type: 'string' },
+                completed: { type: 'boolean' }
+              }
+            }
+          },
+          rawStatus: { type: 'object' }
         }
       },
       NewsArticle: {
