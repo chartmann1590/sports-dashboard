@@ -15,10 +15,12 @@ function startApp(port = 4135) {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
+    const timer = setTimeout(() => reject(new Error(`app did not start in time. output: ${out}`)), 30000);
     const onData = chunk => {
       out += String(chunk);
       const m = out.match(/Listening on: http:\/\/localhost:(\d+)/);
       if (m) {
+        clearTimeout(timer);
         child.stdout.off('data', onData);
         child.stderr.off('data', onData);
         resolve({ child, port: Number(m[1]) });
@@ -26,8 +28,10 @@ function startApp(port = 4135) {
     };
     child.stdout.on('data', onData);
     child.stderr.on('data', onData);
-    child.on('error', reject);
-    setTimeout(() => reject(new Error(`app did not start in time. output: ${out}`)), 30000);
+    child.on('error', err => {
+      clearTimeout(timer);
+      reject(err);
+    });
   });
 }
 
@@ -96,6 +100,7 @@ test('API Documentation & OpenAPI routes', async () => {
     assert.ok(spec.paths['/api/scores'], 'Should include /api/scores path');
     assert.ok(spec.paths['/api/game/{sport}/{league}/{id}'], 'Should include deep game path');
     assert.ok(spec.paths['/api/tts'], 'Should include tts path');
+    assert.equal(spec.components.schemas.GameEvent.properties.broadcasts.type, 'array');
 
     // 3. /api/swagger.json alias works
     const swagger = await request(app.port, 'GET', '/api/swagger.json');

@@ -645,7 +645,12 @@ ArenaPulse provides high-performance, real-time sports data feeds aggregated fro
               indoor: { type: 'boolean', example: false }
             }
           },
-          broadcast: { type: 'string', example: 'NBC, Peacock' },
+          broadcasts: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'List of television and streaming broadcast networks',
+            example: ['NBC', 'Peacock']
+          },
           odds: {
             type: 'object',
             properties: {

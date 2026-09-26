@@ -191,7 +191,7 @@ curl -s "http://localhost:3000/api/scores/all?date=20260926"
         "state": "MD",
         "indoor": false
       },
-      "broadcast": "NBC, Peacock",
+      "broadcasts": ["NBC", "Peacock"],
       "odds": {
         "details": "BAL -3.0",
         "overUnder": 47.5,
