@@ -28,7 +28,7 @@ export default function BreakingTicker({ liveGames, onSelectGame, newsArticles =
                 }}
                 className="inline-flex items-center gap-2 hover:text-emerald-400 transition cursor-pointer"
               >
-                <span className="px-1.5 py-0.2 rounded bg-slate-800 text-[10px] font-bold text-slate-400">
+                <span className="px-1.5 py-0.2 rounded-sm bg-slate-800 text-[10px] font-bold text-slate-400">
                   {game.league?.toUpperCase() || game.sport?.toUpperCase()}
                 </span>
                 <span className="text-white font-bold">{game.awayTeam.abbreviation || game.awayTeam.displayName}</span>
@@ -36,7 +36,7 @@ export default function BreakingTicker({ liveGames, onSelectGame, newsArticles =
                 <span className="text-slate-500">@</span>
                 <span className="text-white font-bold">{game.homeTeam.abbreviation || game.homeTeam.displayName}</span>
                 <span className="text-emerald-400 font-mono font-black">{game.homeTeam.score}</span>
-                <span className="text-red-400 font-mono text-[10px] font-semibold bg-red-500/10 px-1 rounded">
+                <span className="text-red-400 font-mono text-[10px] font-semibold bg-red-500/10 px-1 rounded-sm">
                   {game.status.shortDetail || game.status.detail}
                 </span>
                 <span className="text-slate-600 ml-2">•</span>

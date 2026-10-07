@@ -33,7 +33,7 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
     >
       {/* Live Glow strip */}
       {isLive && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 animate-pulse" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-red-500 via-orange-500 to-amber-500 animate-pulse" />
       )}
 
       {/* Card Header: League, Status & Broadcast */}
@@ -69,19 +69,19 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
         {/* Right: Broadcast, Weather & Odds */}
         <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
           {game.weather?.temperature !== null && game.weather?.temperature !== undefined && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/60 text-amber-300 text-[10px] font-semibold">
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-slate-800/60 text-amber-300 text-[10px] font-semibold">
               <span>{game.weather.indoor ? '🏟️' : '☀️'}</span>
               <span>{game.weather.indoor ? 'Dome' : `${game.weather.temperature}°`}</span>
             </span>
           )}
           {broadcasts.length > 0 && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/60 text-slate-300 text-[10px] font-bold">
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-slate-800/60 text-slate-300 text-[10px] font-bold">
               <Tv className="w-2.5 h-2.5 text-cyan-400" />
               <span>{broadcasts[0]}</span>
             </span>
           )}
           {odds?.details && (
-            <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-slate-800/40 text-slate-400 text-[10px]">
+            <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-sm bg-slate-800/40 text-slate-400 text-[10px]">
               {odds.details}
             </span>
           )}
@@ -121,7 +121,7 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
               <img
                 src={awayTeam.logo}
                 alt={awayTeam.name}
-                className="w-full h-full object-contain filter drop-shadow"
+                className="w-full h-full object-contain filter drop-shadow-sm"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/default-team-logo-500.png&w=64';
@@ -133,7 +133,7 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 {awayTeam.rank && (
-                  <span className="text-[10px] font-black px-1 rounded bg-amber-500/20 text-amber-400">
+                  <span className="text-[10px] font-black px-1 rounded-sm bg-amber-500/20 text-amber-400">
                     #{awayTeam.rank}
                   </span>
                 )}
@@ -180,7 +180,7 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
               <img
                 src={homeTeam.logo}
                 alt={homeTeam.name}
-                className="w-full h-full object-contain filter drop-shadow"
+                className="w-full h-full object-contain filter drop-shadow-sm"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/default-team-logo-500.png&w=64';
@@ -192,7 +192,7 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 {homeTeam.rank && (
-                  <span className="text-[10px] font-black px-1 rounded bg-amber-500/20 text-amber-400">
+                  <span className="text-[10px] font-black px-1 rounded-sm bg-amber-500/20 text-amber-400">
                     #{homeTeam.rank}
                   </span>
                 )}
@@ -243,7 +243,7 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
                 {situation.yardLine && ` • Ball on ${situation.yardLine}`}
               </div>
               {situation.isRedZone && (
-                <span className="px-1.5 py-0.2 rounded bg-red-500/20 text-red-400 text-[10px] font-black shrink-0">
+                <span className="px-1.5 py-0.2 rounded-sm bg-red-500/20 text-red-400 text-[10px] font-black shrink-0">
                   RED ZONE
                 </span>
               )}
@@ -257,15 +257,15 @@ export default function GameCard({ game, onClick, isSubscribed = false, onToggle
               <div className="flex items-center gap-2">
                 <div className="relative w-5 h-5 rotate-45 border border-slate-700">
                   {/* 2nd base (top) */}
-                  <div className={`absolute top-0 right-0 w-2 h-2 rounded-sm ${
+                  <div className={`absolute top-0 right-0 w-2 h-2 rounded-xs ${
                     situation.onSecond ? 'bg-amber-400' : 'bg-slate-800'
                   }`} />
                   {/* 3rd base (left) */}
-                  <div className={`absolute top-0 left-0 w-2 h-2 rounded-sm ${
+                  <div className={`absolute top-0 left-0 w-2 h-2 rounded-xs ${
                     situation.onThird ? 'bg-amber-400' : 'bg-slate-800'
                   }`} />
                   {/* 1st base (right) */}
-                  <div className={`absolute bottom-0 right-0 w-2 h-2 rounded-sm ${
+                  <div className={`absolute bottom-0 right-0 w-2 h-2 rounded-xs ${
                     situation.onFirst ? 'bg-amber-400' : 'bg-slate-800'
                   }`} />
                 </div>

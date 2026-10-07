@@ -1,6 +1,74 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-dark-700: #263456;
+  --color-dark-750: #1d2742;
+  --color-dark-800: #161e33;
+  --color-dark-850: #101626;
+  --color-dark-900: #0b0f19;
+  --color-dark-950: #07090e;
+
+  --color-sports-red: #ef4444;
+  --color-sports-green: #10b981;
+  --color-sports-gold: #f59e0b;
+  --color-sports-blue: #3b82f6;
+  --color-sports-cyan: #06b6d4;
+  --color-sports-purple: #8b5cf6;
+
+  --animate-pulse-glow: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-marquee: marquee 35s linear infinite;
+  --animate-score-flash: scoreFlash 1.5s ease-out;
+
+  @keyframes pulseGlow {
+    0%,
+    100% {
+      opacity: 1;
+      filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
+    }
+    50% {
+      opacity: 0.6;
+      filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.2));
+    }
+  }
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes scoreFlash {
+    0% {
+      background-color: rgba(16, 185, 129, 0.35);
+      transform: scale(1.08);
+    }
+    100% {
+      background-color: transparent;
+      transform: scale(1);
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 @layer base {
   body {

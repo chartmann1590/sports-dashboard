@@ -186,14 +186,14 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
   const homeBoxTeam = boxTeams.find(t => t.team.id === homeTeam.id || t.team.name === homeTeam.displayName) || boxTeams[1];
 
   return (
-    <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Full game center" className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
+    <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Full game center" className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
       <div 
-        className="relative w-full max-w-5xl bg-[#0b0f19] border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh]"
+        className="relative w-full max-w-5xl bg-dark-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         
         {/* Header Matchup Banner */}
-        <div className="relative bg-gradient-to-br from-slate-900 via-[#101728] to-slate-950 p-6 border-b border-slate-800">
+        <div className="relative bg-linear-to-br from-slate-900 via-[#101728] to-slate-950 p-6 border-b border-slate-800">
           
           {/* Top Actions: Alerts & Close */}
           <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
@@ -216,7 +216,7 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
                       e.stopPropagation();
                       setShowAlertMenu(!showAlertMenu);
                     }}
-                    className="p-0.5 hover:bg-amber-500/20 rounded ml-0.5"
+                    className="p-0.5 hover:bg-amber-500/20 rounded-sm ml-0.5"
                     title="Customize alert triggers"
                   >
                     <ChevronDown className="w-3 h-3" />
@@ -318,7 +318,7 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
               <div>
                 <div className="flex items-center gap-2">
                   {awayTeam.rank && (
-                    <span className="text-xs font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                    <span className="text-xs font-black px-1.5 py-0.5 rounded-sm bg-amber-500/20 text-amber-400">
                       #{awayTeam.rank}
                     </span>
                   )}
@@ -357,7 +357,7 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
                 <div className="flex items-center justify-end gap-2">
                   <h2 className="text-xl sm:text-2xl font-black text-white">{homeTeam.displayName}</h2>
                   {homeTeam.rank && (
-                    <span className="text-xs font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                    <span className="text-xs font-black px-1.5 py-0.5 rounded-sm bg-amber-500/20 text-amber-400">
                       #{homeTeam.rank}
                     </span>
                   )}
@@ -438,7 +438,7 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
               }}
               className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${
                 activeTab === tab.id
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
@@ -509,7 +509,7 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
                                 <span className="text-slate-200">{play.homeScore}</span>
                               </div>
                             ) : (
-                              <span className="text-[10px] font-mono text-slate-500 uppercase bg-slate-800/40 px-2 py-0.5 rounded">
+                              <span className="text-[10px] font-mono text-slate-500 uppercase bg-slate-800/40 px-2 py-0.5 rounded-sm">
                                 Event
                               </span>
                             )}
@@ -586,7 +586,7 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
                               <span className="text-slate-200">{play.text}</span>
                             </div>
                             {play.scoringPlay && (
-                              <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold shrink-0">
+                              <span className="px-1.5 py-0.2 rounded-sm bg-emerald-500/20 text-emerald-400 font-bold shrink-0">
                                 SCORE
                               </span>
                             )}
@@ -698,7 +698,7 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
                 <div className="space-y-6">
                   
                   {/* Matchup Win Probability Projection Card */}
-                  <div className="bg-gradient-to-br from-slate-900/95 via-[#0e1626] to-slate-950/95 border border-slate-700/80 rounded-2xl p-6 space-y-5 shadow-xl">
+                  <div className="bg-linear-to-br from-slate-900/95 via-[#0e1626] to-slate-950/95 border border-slate-700/80 rounded-2xl p-6 space-y-5 shadow-xl">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-emerald-400" />
@@ -759,12 +759,12 @@ export default function GameDetailsModal({ game, onClose, initialTab = 'scoring'
                       {/* Split Progress Meter */}
                       <div className="w-full h-3.5 bg-slate-800 rounded-full overflow-hidden flex shadow-inner border border-slate-700/60">
                         <div 
-                          className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-500"
+                          className="h-full bg-linear-to-r from-blue-600 to-cyan-400 transition-all duration-500"
                           style={{ width: `${details?.projection?.awayWinPercentage ?? 50}%` }}
                           title={`${awayTeam.displayName}: ${details?.projection?.awayWinPercentage ?? 50}%`}
                         />
                         <div 
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+                          className="h-full bg-linear-to-r from-emerald-500 to-teal-400 transition-all duration-500"
                           style={{ width: `${details?.projection?.homeWinPercentage ?? 50}%` }}
                           title={`${homeTeam.displayName}: ${details?.projection?.homeWinPercentage ?? 50}%`}
                         />

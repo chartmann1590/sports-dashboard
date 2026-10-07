@@ -434,7 +434,7 @@ export default function App() {
   const liveGames = useMemo(() => games.filter(g => g.status.isLive), [games]);
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-dark-950 text-slate-100 flex flex-col selection:bg-emerald-500/30">
       
       {/* Top Header */}
       <Header
@@ -571,7 +571,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-[#0b0f19] px-6 py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-800/80 bg-dark-900 px-6 py-4 text-center text-xs text-slate-500">
         <p>ArenaPulse Live Dashboard • Powered by free, unauthenticated sports data feeds • Auto-updates live</p>
       </footer>
 
