@@ -15,7 +15,7 @@ export default function LeagueBar({
   liveCountByLeague
 }) {
   return (
-    <div className="bg-[#0b0f19] border-b border-slate-800/60 py-3 px-4 sm:px-6">
+    <div className="bg-dark-900 border-b border-slate-800/60 py-3 px-4 sm:px-6">
       <div className="max-w-[1920px] mx-auto space-y-3">
         
         {/* League Selector Carousel / Pills */}
@@ -28,7 +28,7 @@ export default function LeagueBar({
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 shrink-0 ${
               selectedLeagueId === 'all'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 ring-1 ring-emerald-400'
+                ? 'bg-linear-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 ring-1 ring-emerald-400'
                 : 'bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-800'
             }`}
           >
@@ -86,7 +86,7 @@ export default function LeagueBar({
               onClick={() => { playClickSound(); setStatusFilter('all'); }}
               className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
                 statusFilter === 'all'
-                  ? 'bg-slate-800 text-white shadow-sm'
+                  ? 'bg-slate-800 text-white shadow-xs'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -136,7 +136,7 @@ export default function LeagueBar({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Filter by team, rank, city..."
-                className="w-full bg-slate-900/90 border border-slate-800 pl-8 pr-3 py-1.5 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
+                className="w-full bg-slate-900/90 border border-slate-800 pl-8 pr-3 py-1.5 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-emerald-500/50"
               />
               {searchTerm && (
                 <button
@@ -154,7 +154,7 @@ export default function LeagueBar({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent text-xs text-slate-300 font-medium focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs text-slate-300 font-medium focus:outline-hidden cursor-pointer"
               >
                 <option value="live-first" className="bg-slate-900 text-white">Live First</option>
                 <option value="time" className="bg-slate-900 text-white">Start Time</option>

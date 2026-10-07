@@ -66,11 +66,11 @@ export default function NewsDrawer({ isOpen, onClose, defaultLeague = 'nfl', lea
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-xs animate-fadeIn"
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-lg bg-[#0b0f19] border-l border-slate-800 h-full flex flex-col shadow-2xl"
+        className="w-full max-w-lg bg-dark-900 border-l border-slate-800 h-full flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}

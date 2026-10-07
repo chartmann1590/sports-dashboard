@@ -98,12 +98,12 @@ export default function Header({
   });
 
   return (
-    <header className="sticky top-0 z-40 bg-[#07090e]/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-40 bg-dark-950/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 sm:px-6">
       <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-4">
         
         {/* Brand & Live Indicator */}
         <div className="flex items-center space-x-3">
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-600 shadow-lg shadow-emerald-500/20">
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-linear-to-br from-emerald-500 via-teal-600 to-cyan-600 shadow-lg shadow-emerald-500/20">
             <Radio className="w-5 h-5 text-white animate-pulse" />
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -193,7 +193,7 @@ export default function Header({
                 playClickSound();
                 setAutoRefreshInterval(Number(e.target.value));
               }}
-              className="bg-transparent text-xs text-slate-300 font-medium px-2 py-1 rounded-lg focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs text-slate-300 font-medium px-2 py-1 rounded-lg focus:outline-hidden cursor-pointer"
               title="Auto-refresh interval"
             >
               <option value={10} className="bg-slate-900 text-white">10s Live</option>
@@ -204,7 +204,7 @@ export default function Header({
             </select>
 
             {autoRefreshInterval > 0 && (
-              <span className="px-2 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 rounded border border-emerald-500/20" title="Next refresh in">
+              <span className="px-2 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 rounded-sm border border-emerald-500/20" title="Next refresh in">
                 {countdown}s
               </span>
             )}
@@ -231,7 +231,7 @@ export default function Header({
                 playClickSound();
                 onInstallPWA();
               }}
-              className="px-3 py-1.5 rounded-xl border bg-gradient-to-r from-emerald-600 to-teal-600 border-emerald-400/80 text-white hover:brightness-110 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 animate-pulse"
+              className="px-3 py-1.5 rounded-xl border bg-linear-to-r from-emerald-600 to-teal-600 border-emerald-400/80 text-white hover:brightness-110 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 animate-pulse"
               title="Install ArenaPulse PWA App on your device"
             >
               <Download className="w-3.5 h-3.5" />
@@ -247,14 +247,14 @@ export default function Header({
             }}
             className={`p-2 rounded-xl border transition relative ${
               activeSubscriptionCount > 0
-                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-sm shadow-amber-500/20'
+                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-xs shadow-amber-500/20'
                 : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
             }`}
             title={`Live Game Alerts & Subscriptions (${activeSubscriptionCount} active)`}
           >
             <Bell className="w-4 h-4" />
             {activeSubscriptionCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-amber-500 text-slate-950 text-[10px] font-black rounded-full flex items-center justify-center shadow">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-amber-500 text-slate-950 text-[10px] font-black rounded-full flex items-center justify-center shadow-sm">
                 {activeSubscriptionCount}
               </span>
             )}
@@ -268,7 +268,7 @@ export default function Header({
             }}
             className={`p-2 rounded-xl border transition ${
               isAudioEnabled 
-                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 shadow-sm shadow-emerald-500/10' 
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 shadow-xs shadow-emerald-500/10' 
                 : 'bg-slate-900/90 border-slate-800 text-slate-400 hover:text-white'
             }`}
             title={isAudioEnabled ? "Sound Alerts Enabled (Chimes on scores)" : "Sound Alerts Muted"}
@@ -297,9 +297,9 @@ export default function Header({
               playClickSound();
               setIsTVMode(!isTVMode);
             }}
-            className={`px-3 py-1.5 rounded-xl border font-bold text-xs transition flex items-center gap-2 shadow-sm ${
+            className={`px-3 py-1.5 rounded-xl border font-bold text-xs transition flex items-center gap-2 shadow-xs ${
               isTVMode 
-                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 border-cyan-400 text-white shadow-cyan-500/30 ring-2 ring-cyan-400/40' 
+                ? 'bg-linear-to-r from-cyan-600 to-blue-600 border-cyan-400 text-white shadow-cyan-500/30 ring-2 ring-cyan-400/40' 
                 : 'bg-slate-900/90 border-slate-800 text-cyan-400 hover:border-cyan-500/40 hover:bg-cyan-500/10'
             }`}
             title="Toggle TV / Jumbotron Mode (Big Screen TV Display)"
@@ -314,7 +314,7 @@ export default function Header({
             target="_blank"
             rel="noopener noreferrer"
             onClick={playClickSound}
-            className="px-2.5 py-1.5 rounded-xl border bg-slate-900/90 border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/40 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+            className="px-2.5 py-1.5 rounded-xl border bg-slate-900/90 border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/40 text-xs font-semibold transition flex items-center gap-1.5 shadow-xs"
             title="Interactive REST API Documentation (Swagger UI & OpenAPI 3.0)"
           >
             <Code2 className="w-3.5 h-3.5 text-cyan-400" />
